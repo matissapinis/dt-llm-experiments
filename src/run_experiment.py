@@ -1,34 +1,54 @@
 # ./src/run_experiment.py
 
 from framework import NewcombExperiment
+from pathlib import Path
 
 def main():
     # Initialize experiment:
     experiment = NewcombExperiment(
         base_output_dir="experiment_results",
         temperature=0.8,
-        max_tokens=400
+        max_tokens=400,
+        random_seed=42
     )
     
-    # Load prompts:
-    experiment.load_system_prompt("templates/system_prompt.txt")
-    experiment.load_prompt_template("templates/newcomb_basic.txt")
+    # Load prompts from files:
+    with open("templates/system_prompt.txt", "r") as f:
+        experiment.load_system_prompt(f.read())
+        
+    with open("templates/newcomb_basic.txt", "r") as f:
+        experiment.add_prompt_template("newcomb_basic", f.read())
     
-    # Set model (using Claude 3.5 Sonnet as example):
-    experiment.set_model("anthropic:claude-3-5-sonnet-20241022")
+    # Set models:
+    experiment.set_models([
+        "anthropic:claude-3-5-sonnet-20241022"
+    ])
     
-    # Define classic Newcomb problem parameters:
-    params = {
-        "accuracy": 0.99,
-        "opaque_reward": 1000000,
-        "transparent_reward": 1000
+    # Define parameters:
+    param_config = {
+        "accuracy": {
+            "type": "float",
+            "value": 0.99,
+            "fixed": True
+        },
+        "opaque_reward": {
+            "type": "int",
+            "value": 1000000,
+            "fixed": True
+        },
+        "transparent_reward": {
+            "type": "int",
+            "value": 1000,
+            "fixed": True
+        }
     }
     
-    # Run experiment:
-    response = experiment.run_single_experiment(params)
-    
-    print("\nModel response:")
-    print(response)
+    # Run experiments:
+    results = experiment.run_experiments(
+        param_config=param_config,
+        repeats_per_model=1,  # Single run for testing.
+        display_examples=True
+    )
 
 if __name__ == "__main__":
     main()

@@ -51,6 +51,9 @@ class NewcombExperiment:
         """Load a problem's system prompt, template and parameters from config directory:"""
         problem_dir = Path("config/problems") / problem_name
         
+        # Clear previous templates:
+        self.prompt_templates = {}
+        
         # Load system prompt:
         with open(problem_dir / "system_prompt.txt", "r") as f:
             self.load_system_prompt(f.read())
@@ -63,6 +66,38 @@ class NewcombExperiment:
         with open(problem_dir / "user_prompt_parameters.json", "r") as f:
             self.param_config = json.load(f)
     
+    def list_problems(self) -> List[str]:
+        """List all available problems in config directory:"""
+        problems_dir = Path("config/problems")
+        return [p.name for p in problems_dir.iterdir() if p.is_dir() and 
+                all((p / f).exists() for f in [
+                    "system_prompt.txt",
+                    "user_prompt_template.txt",
+                    "user_prompt_parameters.json"
+                ])]
+
+    def run_all_problems(
+        self,
+        repeats_per_model: int = 2,
+        display_examples: bool = True
+    ) -> Dict[str, Dict[str, List[Dict[str, Any]]]]:
+        """Run experiments for all available problems:"""
+        all_results = {}
+        
+        for problem_name in self.list_problems():
+            print(f"\nRunning problem: {problem_name}")
+            self.load_problem(problem_name)
+            
+            results = self.run_experiments(
+                param_config=self.param_config,
+                repeats_per_model=repeats_per_model,
+                display_examples=display_examples
+            )
+            
+            all_results[problem_name] = results
+        
+        return all_results
+
     def add_prompt_template(self, name: str, template: str) -> None:
         """Add a prompt template directly from string:"""
         self.prompt_templates[name] = template.strip()

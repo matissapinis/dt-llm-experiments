@@ -46,6 +46,22 @@ class NewcombExperiment:
     def load_system_prompt(self, prompt: str) -> None:
         """Load system prompt directly from string:"""
         self.system_prompt = prompt.strip()
+
+    def load_problem(self, problem_name: str) -> None:
+        """Load a problem's system prompt, template and parameters from config directory:"""
+        problem_dir = Path("config/problems") / problem_name
+        
+        # Load system prompt:
+        with open(problem_dir / "system_prompt.txt", "r") as f:
+            self.load_system_prompt(f.read())
+        
+        # Load template:
+        with open(problem_dir / "user_prompt_template.txt", "r") as f:
+            self.add_prompt_template(problem_name, f.read())
+        
+        # Load parameters:
+        with open(problem_dir / "user_prompt_parameters.json", "r") as f:
+            self.param_config = json.load(f)
     
     def add_prompt_template(self, name: str, template: str) -> None:
         """Add a prompt template directly from string:"""

@@ -12,41 +12,18 @@ def main():
         random_seed=42
     )
     
-    # Load prompts from files:
-    with open("templates/system_prompt.txt", "r") as f:
-        experiment.load_system_prompt(f.read())
-        
-    with open("templates/newcomb_basic.txt", "r") as f:
-        experiment.add_prompt_template("newcomb_basic", f.read())
+    # Load problem configuration (includes system prompt):
+    experiment.load_problem("newcomb_marriage")  # Or "newcomb_money" and so on.
     
     # Set models:
     experiment.set_models([
         "anthropic:claude-3-5-sonnet-20241022"
     ])
     
-    # Define parameters:
-    param_config = {
-        "accuracy": {
-            "type": "float",
-            "value": 0.99,
-            "fixed": True
-        },
-        "opaque_reward": {
-            "type": "int",
-            "value": 1000000,
-            "fixed": True
-        },
-        "transparent_reward": {
-            "type": "int",
-            "value": 1000,
-            "fixed": True
-        }
-    }
-    
     # Run experiments:
     results = experiment.run_experiments(
-        param_config=param_config,
-        repeats_per_model=1,  # Single run for testing.
+        param_config=experiment.param_config,
+        repeats_per_model=1,
         display_examples=True
     )
 

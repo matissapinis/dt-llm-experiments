@@ -1,15 +1,14 @@
 # Decision Theory LLM Experiments
 
-Note: Early work-in-progress – a basic initial framework for running descriptive decision theory experiments with LLMs.
+Note: Early work-in-progress – a basic initial framework for decision theory experiments with LLMs.
 
-This repository contains a framework for running decision theory experiments with Large Language Models (LLMs), specifically starting its initial focus on exploring LLM behavior in reference class Newcomblike decision problems (variations of Newcomb's problem and the Psychological Twin Prisoner's Dilemma).
+This repository contains a framework for running descriptive decision theory experiments with large language models (LLMs), specifically focusing on exploring LLM behavior in Newcomblike decision problems (e.g., near-classic formulations or various reformulations by themes, by payoff structures and by payoff values).
 
 ## Prerequisites
 
 - Python 3.x
 - Git
-- OpenAI API key
-- Anthropic API key
+- LLM provider API keys (e.g., OpenAI's, Anthropic's)
 
 ## Setup
 
@@ -36,31 +35,99 @@ OPENAI_API_KEY=your_openai_key_here
 ANTHROPIC_API_KEY=your_anthropic_key_here
 ```
 
-## Running Experiments
+5. Optional: Try the added Google Colab notebook with example usage.
 
-To run a basic Newcomb's problem experiment:
+## Running experiments and usage
 
+To run experiments:
+
+### 1. Local environment
 ```bash
 python src/run_experiment.py
 ```
 
-This will:
-1. Load the system prompt and Newcomblike problem template.
-2. Run one experiment with classic Newcomb's problem parameters (99% accuracy, $1M vs $1K box-content payoff values).
-3. Save the response with metadata to a JSON file.
-4. Print the response to the console.
+### 2. Google Colab notebook
+An IPYNB example notebook is provided for running experiments in Google Colaboratory with the same-supporting functionality.
 
-## Project Structure
+These will:
+1. Validate availability of configured LLM models.
+2. Load all available decision problem configurations.
+3. Run experiments for each model on each problem the chosen number of times.
+4. Save responses with full metadata to JSON files.
+5. Display example responses and completion summary.
+
+## Project structure
 
 ```
 dt-llm-experiments/
 ├── src/
 │   ├── framework.py          # Core experiment framework
-│   ├── run_experiment.py     # Experiment runner script
-│   └── templates/            # Prompt templates
-│       ├── system_prompt.txt
-│       └── newcomb_basic.txt
+│   └── run_experiment.py     # Experiment runner script
+├── config/
+│   └── problems/             # Decision problem configurations
+│       ├── newcomb_money/
+│       │   ├── system_prompt.txt
+│       │   ├── user_prompt_template.txt
+│       │   └── user_prompt_parameters.json
+│       ├── newcomb_marriage/
+│       │   ├── system_prompt.txt
+│       │   ├── user_prompt_template.txt
+│       │   └── user_prompt_parameters.json
+│       └── [other_variations]/
 ├── experiment_results/       # Experiment outputs
 ├── .env                      # API keys (not in git)
+├── dt-llm-experiments-example-notebook.ipynb     # Example Google Colab notebook
 └── README.md
 ```
+
+## Features
+
+- Support for multiple LLM providers (OpenAI, Anthropic).
+- Configurable problem variations via templates and parameters.
+- Model availability validation before experiment runs (with some minimal token use).
+- Structured output with full experiment metadata.
+- Compatible with both local environments and Google Colab.
+
+## Development status
+
+Early prototype with working implementation of:
+- Framework for running batched experiments.
+- Model validation and error handling.
+- Configurable problem variations.
+- Result saving with metadata.
+- Local environment and Google Colab compatibility.
+
+## To-do
+
+### 1. Problem structure standardization
+- [ ] Implement clear structure for decision problem variations:
+  - 1. Problem type (e.g., Newcomb's Problem, Twin Prisoner's Dilemma).
+  - 2. Problem theme (e.g., money-box, QALY-marriage).
+  - 3. Problem structure:
+    - 3.1. Standard (EDT → one-box, CDT → two-box)
+    - 3.2. Inverse (EDT → two-box, CDT → one-box)
+    - 3.3. EDT-indifferent
+    - 3.4. CDT-indifferent
+    - 3.5. Fully indifferent (control)
+
+### 2. Parameter generation
+- [ ] Add support for randomized parameter generation:
+  - Theme-appropriate intuitive value ranges and granularities (e.g., money-box in multiple-incrementable $100K-$10M range, QALY-marriage in 1-incrementable 1-70 QALY range).
+
+### 3. Other potential improvements
+- [ ] Response parsing and quantitative or qualitative analysis assistance (to search for insights):
+  - Payoff-specific patterns.
+  - Theme-specific patterns.
+  - Structure-specific patterns.
+  - Problem-specific patterns.
+  - Consistency within models.
+  - Comparison across models at frontier between providers.
+  - Comparison across models on scaling between frontier and legacy.
+  - Decision theory alignment.
+  - Notable reasoning patterns.
+  - ...
+- [ ] Any needed support for local or Colab results visualization (to generate graphs).
+- [ ] Automated tests for framework components (to test for errors).
+- [ ] Support for batch experiment scheduling (to handle API rate limits, quotas).
+- [ ] Experiment cost estimation (to avoid compute budgeting issues).
+- [ ] Clean up example Google Colab notebook to remove unintended private decision problem artifacts (to avoid leaking latent evaluation data).

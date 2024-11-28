@@ -29,7 +29,7 @@ source venv/bin/activate
 pip install 'aisuite[all]' pandas python-dotenv
 ```
 
-4. Create `.env` file in the root directory and add your API keys:
+4. Create `.env` file in the root directory and add your API keys, e.g.:
 ```
 OPENAI_API_KEY=your_openai_key_here
 ANTHROPIC_API_KEY=your_anthropic_key_here

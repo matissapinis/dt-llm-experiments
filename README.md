@@ -35,7 +35,7 @@ OPENAI_API_KEY=your_openai_key_here
 ANTHROPIC_API_KEY=your_anthropic_key_here
 ```
 
-5. Optional: Try the added Google Colab notebook with example usage.
+5. Optional: Try the added IPYNB notebook with example usage by importing it into Google Colab.
 
 ## Running experiments and usage
 

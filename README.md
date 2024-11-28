@@ -77,12 +77,13 @@ dt-llm-experiments/
 ├── experiment_results/       # Experiment outputs
 ├── .env                      # API keys (not in git)
 ├── dt-llm-experiments-example-notebook.ipynb     # Example Google Colab notebook
+...
 └── README.md
 ```
 
 ## Features
 
-- Support for multiple LLM providers (OpenAI, Anthropic).
+- Support for multiple LLM providers (e.g., OpenAI, Anthropic via aisuite package).
 - Configurable problem variations via templates and parameters.
 - Model availability validation before experiment runs (with some minimal token use).
 - Structured output with full experiment metadata.

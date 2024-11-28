@@ -129,7 +129,8 @@ Early prototype with working implementation of:
   - Notable reasoning patterns.
   - ...
 - [ ] Improve immediate readability of preview responses (to ease quick-impressionable viewing).
-- [ ] Add flexibility for running experiments on subset of decision problem configurations (to switch via code, not file management).
+- [ ] Flexibility for running experiments on subset of decision problem configurations (to switch via code, not file management).
+- [ ] Include in decision configuration preferred normative ground-truth – DT-calculated utilities, reasoning (to clarify normative-descriptive comparison).
 - [ ] Any needed support for local or Colab results visualization (to generate graphs).
 - [ ] Automated tests for framework components (to test for errors).
 - [ ] Support for batch experiment scheduling (to handle API rate limits, quotas).

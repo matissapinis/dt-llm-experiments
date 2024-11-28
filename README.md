@@ -62,7 +62,7 @@ These will:
 dt-llm-experiments/
 ├── src/
 │   ├── framework.py          # Core experiment framework
-│   └── run_experiment.py     # Experiment runner script
+│   └── run_experiment.py     # Local experiment runner script
 ├── config/
 │   └── problems/             # Decision problem configurations
 │       ├── newcomb_money/

@@ -101,14 +101,15 @@ Early prototype with working implementation of:
 
 ### 1. Problem structure standardization
 - [ ] Implement clear structure for decision problem variations:
-  - 1. Problem type (e.g., Newcomb's Problem, Twin Prisoner's Dilemma).
+  - 1. Problem type (e.g., Newcomb's Problem, Psychological Twin Prisoner's Dilemma).
   - 2. Problem theme (e.g., money-box, QALY-marriage).
   - 3. Problem structure:
-    - 3.1. Standard (EDT → one-box, CDT → two-box)
-    - 3.2. Inverse (EDT → two-box, CDT → one-box)
-    - 3.3. EDT-indifferent
-    - 3.4. CDT-indifferent
-    - 3.5. Fully indifferent (control)
+    - 1. Standard (EDT → one-box, CDT → two-box)
+    - 2. Inverse (EDT → two-box, CDT → one-box)
+    - 3. EDT-indifferent (EDT → indifferent, CDT → two-box)
+    - 4. CDT-indifferent (EDT → one-box, CDT → indifferent)
+    - 5. Fully indifferent (control) (EDT → indifferent, CDT → indifferent)
+    - 6. Other combinatorial choices ({DT → preferred action})
 
 ### 2. Parameter generation
 - [ ] Add support for randomized parameter generation:

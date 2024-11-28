@@ -134,4 +134,4 @@ Early prototype with working implementation of:
 - [ ] Automated tests for framework components (to test for errors).
 - [ ] Support for batch experiment scheduling (to handle API rate limits, quotas).
 - [ ] Experiment cost estimation (to avoid compute budgeting issues).
-- [ ] Clean up example Google Colab notebook to remove unintended private decision problem artifacts (to avoid leaking latent evaluation data).
+- [ ] Clean up example Google Colab notebook to remove unintended private decision problem artifacts (to avoid leaking latent evaluation information).

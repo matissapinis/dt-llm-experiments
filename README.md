@@ -2,7 +2,7 @@
 
 Note: Early work-in-progress – a basic initial framework for decision theory experiments with LLMs.
 
-This repository contains a framework for running descriptive decision theory experiments with large language models (LLMs), specifically focusing on exploring LLM behavior in Newcomblike decision problems (e.g., near-classic formulations or various reformulations by themes, by payoff structures and by payoff values).
+This repository contains a framework for running descriptive decision theory experiments with large language models (LLMs), specifically focusing on exploring LLM behavior in Newcomblike decision problems (e.g., for Newcomb's problem its near-classic formulations or various reformulations by themes, by payoff structures and by payoff values).
 
 ## Prerequisites
 

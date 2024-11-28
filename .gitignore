@@ -4,3 +4,11 @@ venv/
 __pycache__/
 .env
 experiment_results/
+
+# macOS system files:
+.DS_Store
+.DS_Store?
+._*
+
+# Any additional uncommitted private Newcomblike problem configurations kept uncommitted:
+config/problems/

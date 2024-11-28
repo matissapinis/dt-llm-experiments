@@ -13,16 +13,20 @@ def main():
     )
     
     # Set models:
+    # Anthropic models (frontier vs. legacy) – https://docs.anthropic.com/en/docs/about-claude/models#model-names.
+    # OpenAI models (frontier vs. legacy) – https://openai.com/api/pricing/.
     experiment.set_models([
         "anthropic:claude-3-5-sonnet-20241022",
-        "openai:gpt-4o"
+        "anthropic:claude-2.0",
+        "openai:gpt-4o-2024-11-20",
+        "openai:gpt-3.5-turbo-1106"
     ])
     
     # List available problems:
     available_problems = experiment.list_problems()
     print(f"Available problems: {available_problems}")
     
-    # Run all problems:
+    # Run experiment on all problems for each model:
     results = experiment.run_all_problems(
         repeats_per_model=2,
         display_examples=True

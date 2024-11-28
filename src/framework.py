@@ -39,9 +39,43 @@ class NewcombExperiment:
         if random_seed is not None:
             random.seed(random_seed)
     
+    def validate_all_models(self, models: List[str]) -> List[str]:
+      """Validate all models are available before proceeding with any experiments:"""
+      print("\nValidating model availability...")
+      available_models = []
+      unavailable_models = []
+      
+      for model in models:
+          try:
+              # Test with minimal token usage:
+              self.client.chat.completions.create(
+                  model=model,
+                  messages=[
+                      {"role": "system", "content": "."},
+                      {"role": "user", "content": "."}
+                  ],
+                  max_tokens=1,
+                  temperature=0
+              )
+              available_models.append(model)
+              print(f"✓ Available: {model}")
+          except Exception as e:
+              unavailable_models.append((model, str(e)))
+              print(f"✗ Unavailable: {model}")
+              print(f"  Error: {str(e)}")
+      
+      if unavailable_models:
+          error_msg = "The following models are unavailable:\n"
+          for model, error in unavailable_models:
+              error_msg += f"- {model}: {error}\n"
+          raise RuntimeError(error_msg)
+      
+      return available_models
+    
     def set_models(self, models: List[str]) -> None:
-        """Set list of models to use in experiments:"""
-        self.models = models
+        """Set list of models to use in experiments with strict validation:"""
+        self.models = self.validate_all_models(models)
+        print(f"\nAll {len(self.models)} requested models are available.")
     
     def load_system_prompt(self, prompt: str) -> None:
         """Load system prompt directly from string:"""

@@ -127,8 +127,8 @@ Early prototype with working implementation of:
   - Decision theory alignment.
   - Notable reasoning patterns.
   - ...
-- [ ] Improve immediate readability of preview responses.
-- [ ] Add flexibility for running experiments on subset of decision problem configurations.
+- [ ] Improve immediate readability of preview responses (to ease quick-impressionable viewing).
+- [ ] Add flexibility for running experiments on subset of decision problem configurations (to switch via code, not file management).
 - [ ] Any needed support for local or Colab results visualization (to generate graphs).
 - [ ] Automated tests for framework components (to test for errors).
 - [ ] Support for batch experiment scheduling (to handle API rate limits, quotas).

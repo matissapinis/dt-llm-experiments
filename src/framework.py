@@ -82,6 +82,24 @@ class NewcombExperiment:
                         ],
                         max_output_tokens=16 # Minimal token usage.
                     )
+                if self.is_reasoning_model(model) and "anthropic:" in model and "-extended" in model:
+                    # For Claude with Extended Thinking, validate with Anthropic API:
+                    import anthropic
+                    client = anthropic.Anthropic()
+                    
+                    # Extract base model name (without extended suffix):
+                    model_name = model.split(":")[-1].replace("-extended-thinking", "")
+                    
+                    # Try minimal content with Extended Thinking:
+                    response = client.beta.messages.create(
+                        model=model_name,
+                        max_tokens=1024 + 1, # Minimal token usage.
+                        thinking={
+                            "type": "enabled",
+                            "budget_tokens": 1024 # Minimal token usage.
+                        },
+                        messages=[{"role": "user", "content": "."}]
+                    )
                 else:
                     # Standard models or other reasoning models use regular validation:
                     self.client.chat.completions.create(
@@ -490,6 +508,9 @@ class NewcombExperiment:
         # OpenAI reasoning models:
         if any(pattern in model for pattern in ["o3-", "o4-mini"]):
             return True
+        # Anthropic reasoning models (with Extended Thinking):
+        if "anthropic:" in model and "-extended-thinking" in model:
+            return True
         # Add more reasoning models as needed:
         return False
 
@@ -539,6 +560,72 @@ class NewcombExperiment:
         except AttributeError:
             # If the attribute doesn't exist, just continue
             pass
+        
+        return formatted_response
+
+    def create_anthropic_reasoning_response(self, model, messages, thinking_budget=32000):
+        """Create a response using Anthropic's Claude with Extended Thinking."""
+        # Thinking budget should be less than max_tokens:
+        thinking_budget = min(thinking_budget, self.max_tokens - 1)
+        
+        # Extract the model name without the provider prefix and -extended-thinking suffix:
+        model_name = model.split(":")[-1]
+        model_name = model_name.replace("-extended-thinking", "")
+        
+        # Setup Anthropic client:
+        import anthropic
+        client = anthropic.Anthropic()
+        
+        # Extract system prompt and create Anthropic messages format:
+        system_prompt = None
+        anthropic_messages = []
+        
+        for msg in messages:
+            if msg["role"] == "system":
+                system_prompt = msg["content"]
+            else:
+                anthropic_messages.append({
+                    "role": msg["role"],
+                    "content": msg["content"]
+                })
+        
+        # Make API call with Extended Thinking:
+        response = client.beta.messages.create(
+            model=model_name,
+            max_tokens=self.max_tokens,
+            system=system_prompt,
+            thinking={
+                "type": "enabled",
+                "budget_tokens": thinking_budget
+            },
+            messages=anthropic_messages,
+            betas=["output-128k-2025-02-19"]
+        )
+        
+        # Extract the main content text:
+        content_text = ""
+        thinking_text = ""
+        
+        # Process each content block based on its type:
+        for content_block in response.content:
+            if content_block.type == "text":
+                content_text += content_block.text
+            elif content_block.type == "thinking":
+                thinking_text += content_block.thinking + "\n\n"
+            elif content_block.type == "redacted_thinking":
+                thinking_text += "[REDACTED THINKING BLOCK]\n\n"
+        
+        # Format the response to match expected structure:
+        formatted_response = type('obj', (object,), {
+            'choices': [
+                type('obj', (object,), {
+                    'message': type('obj', (object,), {
+                        'content': content_text,
+                        'reasoning_content': thinking_text if thinking_text else None
+                    })
+                })
+            ]
+        })
         
         return formatted_response
 
@@ -626,8 +713,18 @@ class NewcombExperiment:
                                     response = self.create_openai_reasoning_response(
                                         model=model,
                                         messages=messages,
-                                        reasoning_effort="high"
+                                        reasoning_effort="high" # Configurable!
                                     )
+                                elif "anthropic:" in model and "-extended-thinking" in model:
+                                    # Use our special Anthropic Extended Thinking handler:
+                                    response = self.create_anthropic_reasoning_response(
+                                        model=model,
+                                        messages=messages,
+                                        thinking_budget=32000 # Configurable!
+                                    )
+                                    # Extract the reasoning content from the response:
+                                    if hasattr(response.choices[0].message, "reasoning_content"):
+                                        reasoning_text = response.choices[0].message.reasoning_content
                             else:
                                 # Standard models use the regular API call:
                                 response = self.client.chat.completions.create(
@@ -664,15 +761,10 @@ class NewcombExperiment:
                                 'extracted_choice': extracted_choice
                             }
                             
-                            # Add reasoning if available:
-                            if reasoning_text:
-                                result['reasoning'] = reasoning_text
-                                result['is_reasoning_model'] = True
-                            else:
-                                result['is_reasoning_model'] = False
-
-                            # Set reasoning model flag based on model type, not just reasoning content:
+                            # Set reasoning model flag based on model type:
                             result['is_reasoning_model'] = self.is_reasoning_model(model)
+
+                            # Add reasoning content if available:
                             if reasoning_text:
                                 result['reasoning'] = reasoning_text
                             

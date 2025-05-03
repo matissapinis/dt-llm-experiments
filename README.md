@@ -35,7 +35,7 @@ OPENAI_API_KEY=your_openai_key_here
 ANTHROPIC_API_KEY=your_anthropic_key_here
 ```
 
-## Running experiments and usage
+## Usage
 
 1. Run experiments on all problems with all configures models:
 ```bash
@@ -48,6 +48,7 @@ python3 src/parse_results.py
 ```
 
 3. Manually review and annotate responses without straightforwardly parseable choice answers:
+
 3.1. List files without parsable resposes:
 ```bash 
 python3 src/annotate_results.py --list
@@ -106,4 +107,5 @@ dt-llm-experiments/
 - Problem parameters (payoff values, probablistic accuracy) can be fixed or randomized within specified constraints (range, granularity, CDT-EDT preferences).
 - Model availability validation before experiment runs (with some minimal token use).
 - Support for multiple LLM providers (e.g., OpenAI, Anthropic via aisuite package).
-– Structured output with ample experiment metadata.
+- Structured output with ample experiment metadata.
+

@@ -1,0 +1,41 @@
+{
+    "type": "newcombs_problem",
+    "theme": "money",
+    "structure": {
+        "type": "standard",
+        "cdt_preference": "two-box",
+        "edt_preference": "one-box"
+    },
+    "parameters": {
+        "p": {
+            "type": "float",
+            "min": 0.51, 
+            "max": 0.99,
+            "granularity": 0.01,
+            "fixed": false
+        },
+        "x": {
+            "type": "int",
+            "min": 1000000,
+            "max": 10000000,
+            "granularity": 1000000,
+            "fixed": false,
+            "description": "Value of opaque box when predicted one-boxing."
+        },
+        "y": {
+            "type": "int",
+            "min": 0,
+            "max": 0,
+            "fixed": true,
+            "description": "Value of opaque box when predicted two-boxing."
+        },
+        "c": {
+            "type": "int",
+            "min": 1000,
+            "max": 10000,
+            "granularity": 1000,
+            "fixed": false,
+            "description": "Value of transparent box regardless of prediction."
+        }
+    }
+}

@@ -8,18 +8,47 @@ def main():
     experiment = NewcombExperiment(
         base_output_dir="experiment_results",
         temperature=0.8,
-        max_tokens=400,
+        max_tokens=8192,
         random_seed=42
     )
     
     # Set models:
-    # Anthropic models (frontier vs. legacy) – https://docs.anthropic.com/en/docs/about-claude/models#model-names.
-    # OpenAI models (frontier vs. legacy) – https://openai.com/api/pricing/.
+    # Anthropic models (reasoning vs. single forward-pass) – https://docs.anthropic.com/en/docs/about-claude/models#model-names.
+    # OpenAI models (reasoning vs. single forward-pass) – https://openai.com/api/pricing/.
+    """
+    Reasoning models:
+        • o3: o3-2025-04-16 (OpenAI)
+        • Gemini 2.5 Pro: gemini-2.5-pro-preview-03-25 / gemini-2.5-pro-exp-03-25 (Google)
+        • Claude 3.7 Sonnet Extended Thinking: claude-3-7-sonnet-20250219 (Anthropic)
+        • DeepSeek R1: DeepSeek-R1 (DeepSeek)
+        • Qwen3-235B-A22B Thinking Mode: Qwen3-235B-A22B (Alibaba)
+        • Grok 3: grok-3-beta (xAI)
+        • o4-mini-high: o4-mini-2025-04-16 (OpenAI)
+
+    Single forward-pass models:
+        • GPT-4o: chatgpt-4o-latest (25/04/2029) (OpenAI)
+        • Gemini 2.5 Flash: gemini-2.5-flash-preview-04-17 (Google)
+        • Claude 3.7 Sonnet: claude-3-7-sonnet-20250219 (Anthropic)
+        • DeepSeek V3: DeepSeek-V3-0324 (DeepSeek)
+        • Qwen3-235B-A22B Non-Thinking Mode: Qwen3-235B-A22B (Alibaba)
+        • Grok 3: grok-3-beta (xAI)
+        • GPT-4.5: gpt-4.5-preview-2025-02-27 (OpenAI)
+    """
+    #### TD: Find precise model names and test their availability:
     experiment.set_models([
-        "anthropic:claude-3-5-sonnet-20241022",
-        "anthropic:claude-2.0",
-        "openai:gpt-4o-2024-11-20",
-        "openai:gpt-3.5-turbo-1106"
+        "openai:o3-2025-04-16", 
+        "google:gemini-2.5-pro-preview-03-25",
+        "anthropic:claude-3-7-sonnet-20250219",
+        "deepseek:DeepSeek-R1",
+        "huggingface:Qwen3-235B-A22B",
+        "xai:grok-3-latest",
+        "openai:o4-mini-high",
+        "openai:gpt-4o-latest",
+        "google:gemini-2.5-flash-preview-04-17",
+        "anthropic:claude-3-7-sonnet",
+        "deepseek:DeepSeek-V3-0324",
+        "xai:grok-3-latest",
+        "openai:gpt-4.5-preview-2025-02-27"
     ])
     
     # List available problems:

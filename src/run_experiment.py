@@ -39,11 +39,11 @@ def main():
         "openai:o3-2025-04-16", 
         "google:gemini-2.5-pro-preview-03-25",
         "anthropic:claude-3-7-sonnet-20250219",
-        "deepseek:DeepSeek-R1",
+        "deepseek:deepseek-reasoner", #### TD: Confirmed working.
         "huggingface:Qwen3-235B-A22B",
         "xai:grok-3-latest",
         "openai:o4-mini-high",
-        "openai:gpt-4o-latest",
+        "openai:chatgpt-4o-latest", #### TD: Confirmed working. 
         "google:gemini-2.5-flash-preview-04-17",
         "anthropic:claude-3-7-sonnet",
         "deepseek:DeepSeek-V3-0324",

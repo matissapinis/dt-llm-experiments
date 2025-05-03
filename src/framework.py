@@ -460,6 +460,14 @@ class NewcombExperiment:
         
         return results
 
+    def is_reasoning_model(self, model: str) -> bool:
+        """Determine if a model is a reasoning model that supports extended thinking."""
+        # DeepSeek reasoning models:
+        if any(pattern in model for pattern in ["deepseek-reasoner"]):
+            return True
+        # Add more reasoning models as needed:
+        return False
+
     def run_experiments_with_question_types(
         self,
         question_types=['cdt_capability', 'edt_capability', 'normative_attitude', 'personal_attitude'],
@@ -516,17 +524,39 @@ class NewcombExperiment:
                         print(f"    Model: {model}")
                         
                         try:
+                            # Setup messages:
+                            messages = [
+                                {"role": "system", "content": system_prompt},
+                                {"role": "user", "content": prompt}
+                            ]
+                            
+                            # Special handling for reasoning models:
+                            reasoning_text = None
+                            kwargs = {}
+                            
+                            if self.is_reasoning_model(model):
+                                if "DeepSeek-R1" in model:
+                                    # DeepSeek R1 parameters:
+                                    kwargs["thinking"] = True
+                            
+                            # Make the API call:
                             response = self.client.chat.completions.create(
                                 model=model,
-                                messages=[
-                                    {"role": "system", "content": system_prompt},
-                                    {"role": "user", "content": prompt}
-                                ],
+                                messages=messages,
                                 temperature=self.temperature,
-                                max_tokens=self.max_tokens
+                                max_tokens=self.max_tokens,
+                                **kwargs
                             )
                             
+                            # Extract response text:
                             response_text = response.choices[0].message.content
+                            
+                            # Extract reasoning if available:
+                            if self.is_reasoning_model(model):
+                                if "deepseek-reasoner" in model:
+                                    # Extract DeepSeek R1 reasoning:
+                                    if hasattr(response.choices[0].message, "reasoning_content"):
+                                        reasoning_text = response.choices[0].message.reasoning_content
                             
                             # Extract and analyze the response:
                             extracted_choice = self.extract_final_answer(response_text)
@@ -551,6 +581,13 @@ class NewcombExperiment:
                                 'preferred_actions': preferred_actions,
                                 'extracted_choice': extracted_choice
                             }
+                            
+                            # Add reasoning if available
+                            if reasoning_text:
+                                result['reasoning'] = reasoning_text
+                                result['is_reasoning_model'] = True
+                            else:
+                                result['is_reasoning_model'] = False
                             
                             # Add alignment and correctness if a choice was extracted:
                             if extracted_choice:

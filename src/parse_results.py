@@ -175,6 +175,11 @@ def parse_experiment_results(results_dir: str = "experiment_results", output_dir
             preferred_actions = result.get('preferred_actions', {})
             parameters = result.get('parameters', {})
             expected_utilities = result.get('expected_utilities', {})
+
+            # Preserve reasoning data if present:
+            if 'reasoning' in result:
+                result['reasoning'] = result['reasoning']
+                result['is_reasoning_model'] = result.get('is_reasoning_model', True)
             
             # Track question types:
             if question_type not in question_type_counts:
@@ -241,7 +246,7 @@ def parse_experiment_results(results_dir: str = "experiment_results", output_dir
         except Exception as e:
             print(f"Error processing {result_file.name}: {e}")
     
-    # Print summary
+    # Print summary:
     print(f"\nParsing complete! {total_parsed} files processed.")
     if preserved_annotations > 0:
         print(f"Preserved manual annotations for {preserved_annotations} files.")

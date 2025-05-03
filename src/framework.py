@@ -89,12 +89,16 @@ class NewcombExperiment:
                         ],
                         max_output_tokens=16 # Minimal token usage.
                     )
+                    available_models.append(model)
+                    print(f"✓ Available: {model}")
+                    continue
+                # Check if this is an Anthropic reasoning model:
                 if self.is_reasoning_model(model) and "anthropic:" in model and "-extended" in model:
                     # For Claude with Extended Thinking, validate with Anthropic API:
                     import anthropic
                     client = anthropic.Anthropic()
                     
-                    # Extract base model name (without extended suffix):
+                    # Extract base model name (without -extended-thinking suffix):
                     model_name = model.split(":")[-1].replace("-extended-thinking", "")
                     
                     # Try minimal content with Extended Thinking:
@@ -107,17 +111,20 @@ class NewcombExperiment:
                         },
                         messages=[{"role": "user", "content": "."}]
                     )
-                else:
-                    # Standard models or other reasoning models use regular validation:
-                    self.client.chat.completions.create(
-                        model=model,
-                        messages=[
-                            {"role": "system", "content": "."},
-                            {"role": "user", "content": "."}
-                        ],
-                        max_tokens=1,
-                        temperature=0
-                    )
+                    available_models.append(model)
+                    print(f"✓ Available: {model}")
+                    continue
+
+                # Standard models or other reasoning models use regular validation:
+                self.client.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {"role": "system", "content": "."},
+                        {"role": "user", "content": "."}
+                    ],
+                    max_tokens=1,
+                    temperature=0
+                )
                 
                 available_models.append(model)
                 print(f"✓ Available: {model}")
@@ -603,26 +610,33 @@ class NewcombExperiment:
             max_output_tokens=self.max_tokens
         )
         
+        # Extract token usage information:
+        usage = getattr(response, "usage", None)
+        if usage and hasattr(usage, "output_tokens_details"):
+            counts = usage.output_tokens_details
+            reasoning_tokens = getattr(counts, "reasoning_tokens", None)
+            prompt_tokens = getattr(counts, "prompt_tokens", None)
+            completion_tokens = getattr(counts, "completion_tokens", None)
+        else:
+            reasoning_tokens = prompt_tokens = completion_tokens = None
+        
         # Format the response to match expected structure:
         formatted_response = type('obj', (object,), {
             'choices': [
                 type('obj', (object,), {
                     'message': type('obj', (object,), {
                         'content': response.output_text,
-                        'reasoning_content': None # Will be populated if we can get reasoning content.
+                        'reasoning_content': f"[Used {reasoning_tokens} reasoning tokens] - Note: OpenAI API doesn't provide access to the full reasoning content." if reasoning_tokens else None
                     })
                 })
-            ]
+            ],
+            'usage': {
+                "prompt_tokens": prompt_tokens,
+                "response_tokens": completion_tokens,
+                "reasoning_tokens": reasoning_tokens
+            },
+            'reasoning_tokens': reasoning_tokens
         })
-        
-        # Try to extract reasoning tokens usage if available:
-        try:
-            if hasattr(response, 'usage') and hasattr(response.usage, 'output_tokens_details'):
-                reasoning_tokens = response.usage.output_tokens_details.reasoning_tokens
-                formatted_response.choices[0].message.reasoning_content = f"[Used {reasoning_tokens} reasoning tokens] - Note: OpenAI API doesn't provide access to the full reasoning content."
-        except AttributeError:
-            # If the attribute doesn't exist, just continue:
-            pass
         
         return formatted_response
 
@@ -652,6 +666,22 @@ class NewcombExperiment:
                     "content": msg["content"]
                 })
         
+        # Count tokens before making the API call:
+        try:
+            token_count_response = client.messages.count_tokens(
+                model=model_name,
+                system=system_prompt,
+                thinking={
+                    "type": "enabled",
+                    "budget_tokens": thinking_budget
+                },
+                messages=anthropic_messages
+            )
+            input_token_count = token_count_response.input_tokens
+        except Exception as e:
+            print(f"Token counting error: {e}")
+            input_token_count = None
+        
         # Make API call with Extended Thinking:
         response = client.beta.messages.create(
             model=model_name,
@@ -668,6 +698,7 @@ class NewcombExperiment:
         # Extract the main content text:
         content_text = ""
         thinking_text = ""
+        thinking_token_count = 0
         
         # Process each content block based on its type:
         for content_block in response.content:
@@ -675,8 +706,18 @@ class NewcombExperiment:
                 content_text += content_block.text
             elif content_block.type == "thinking":
                 thinking_text += content_block.thinking + "\n\n"
+                # Estimate thinking tokens (we don't have exact count from API):
+                thinking_token_count += len(content_block.thinking.split()) * 1.3 # Rough estimate.
             elif content_block.type == "redacted_thinking":
                 thinking_text += "[REDACTED THINKING BLOCK]\n\n"
+                # Can't estimate tokens for redacted blocks.
+        
+        # Extract usage metadata if available:
+        usage = {
+            "input_tokens": input_token_count,
+            "thinking_tokens": int(thinking_token_count) if thinking_token_count > 0 else None,
+            "total_tokens": None # Claude API doesn't provide this directly.
+        }
         
         # Format the response to match expected structure:
         formatted_response = type('obj', (object,), {
@@ -687,7 +728,9 @@ class NewcombExperiment:
                         'reasoning_content': thinking_text if thinking_text else None
                     })
                 })
-            ]
+            ],
+            'usage': usage,
+            'reasoning_tokens': int(thinking_token_count) if thinking_token_count > 0 else None
         })
         
         return formatted_response
@@ -742,6 +785,16 @@ class NewcombExperiment:
         if system_prompt:
             payload["systemInstruction"] = {"parts": [{"text": system_prompt}]}
         
+        # Helper function to extract usage metadata:
+        def extract_gemini_usage(result_json):
+            meta = result_json.get("usageMetadata", {})
+            return {
+                "prompt_tokens": meta.get("promptTokenCount"),
+                "response_tokens": meta.get("candidatesTokenCount"),
+                "thought_tokens": meta.get("thoughtsTokenCount"),
+                "total_tokens": meta.get("totalTokenCount")
+            }
+        
         # Make the API request:
         try:
             response = requests.post(
@@ -755,6 +808,10 @@ class NewcombExperiment:
             
             # Parse the JSON response:
             result = response.json()
+            
+            # Extract usage metadata:
+            usage = extract_gemini_usage(result)
+            reasoning_tokens = usage.get("thought_tokens")
             
             # Extract the response text:
             response_text = ""
@@ -782,7 +839,9 @@ class NewcombExperiment:
                             'reasoning_content': thinking_text
                         })
                     })
-                ]
+                ],
+                'usage': usage,
+                'reasoning_tokens': reasoning_tokens
             })
             
             return formatted_response
@@ -801,7 +860,9 @@ class NewcombExperiment:
                             'reasoning_content': None
                         })
                     })
-                ]
+                ],
+                'usage': None,
+                'reasoning_tokens': None
             })
             return formatted_response
 
@@ -880,10 +941,99 @@ class NewcombExperiment:
                                         temperature=self.temperature,
                                         max_tokens=self.max_tokens
                                     )
+
+                                    # Extract response text:
+                                    response_text = response.choices[0].message.content
                                     
-                                    # Try to extract reasoning content:
+                                    # Extract reasoning content if available:
+                                    reasoning_text = None
                                     if hasattr(response.choices[0].message, "reasoning_content"):
                                         reasoning_text = response.choices[0].message.reasoning_content
+                                    
+                                    # Extract the final answer:
+                                    extracted_choice = self.extract_final_answer(response_text)
+                                    
+                                    # Create the result dictionary with all basic information:
+                                    result = {
+                                        'timestamp': datetime.now().isoformat(),
+                                        'model': model,
+                                        'template_name': template_name,
+                                        'question_type': question_type,
+                                        'run_number': i+1,
+                                        'temperature': self.temperature,
+                                        'max_tokens': self.max_tokens,
+                                        'system_prompt': system_prompt,
+                                        'user_prompt': prompt,
+                                        'response': response_text,
+                                        'parameters': params,
+                                        'problem_type': self.problem_type,
+                                        'problem_theme': self.problem_theme,
+                                        'problem_structure': self.problem_structure,
+                                        'expected_utilities': expected_utilities,
+                                        'preferred_actions': preferred_actions,
+                                        'extracted_choice': extracted_choice,
+                                        'is_reasoning_model': True
+                                    }
+                                    
+                                    # Add reasoning content if available:
+                                    if reasoning_text:
+                                        result['reasoning'] = reasoning_text
+                                    
+                                    # Extract usage statistics as a simple Python dictionary:
+                                    if hasattr(response, "usage"):
+                                        usage = response.usage
+                                        
+                                        # Create a separate dictionary with just the attributes we want:
+                                        usage_dict = {}
+                                        
+                                        # Safely extract all attributes we need:
+                                        if hasattr(usage, "prompt_tokens"):
+                                            usage_dict["prompt_tokens"] = usage.prompt_tokens
+                                        if hasattr(usage, "completion_tokens"):
+                                            usage_dict["completion_tokens"] = usage.completion_tokens
+                                        if hasattr(usage, "total_tokens"):
+                                            usage_dict["total_tokens"] = usage.total_tokens
+                                        
+                                        # Check for reasoning tokens in completion_tokens_details:
+                                        if hasattr(usage, "completion_tokens_details"):
+                                            details = usage.completion_tokens_details
+                                            if hasattr(details, "reasoning_tokens"):
+                                                usage_dict["reasoning_tokens"] = details.reasoning_tokens
+                                        
+                                        # Add usage dictionary to result:
+                                        if usage_dict:
+                                            result['usage_statistics'] = usage_dict
+                                    
+                                    # Handle alignment and correctness:
+                                    if extracted_choice:
+                                        alignment = self.determine_alignment(extracted_choice, preferred_actions)
+                                        result['cdt_aligned'] = alignment['cdt_aligned']
+                                        result['edt_aligned'] = alignment['edt_aligned']
+                                        
+                                        correctness = self.check_correctness(extracted_choice, question_type, preferred_actions)
+                                        if correctness is not None:
+                                            result['correct_capability_answer'] = correctness
+                                        
+                                        print(f"      Choice: {extracted_choice}, CDT aligned: {alignment['cdt_aligned']}, EDT aligned: {alignment['edt_aligned']}")
+                                        if correctness is not None:
+                                            print(f"      Correct answer: {correctness}")
+                                    else:
+                                        print("      No final answer extracted")
+                                    
+                                    # Save result to results dictionary:
+                                    results[model].append(result)
+                                    
+                                    # Create output filename:
+                                    matrix_structure = self.extract_matrix_structure(self.problem_structure)
+                                    filename = f"{self.launch_timestamp}_{result['timestamp']}_{template_name}_{matrix_structure}_{question_type}_{model.replace(':', '_')}.json"
+                                    
+                                    # Save to file:
+                                    filepath = self.base_output_dir / filename
+                                    with open(filepath, 'w') as f:
+                                        json.dump(result, f, indent=2)
+                                    
+                                    # Skip the rest of the models section to avoid duplicate processing:
+                                    continue
                                 elif any(pattern in model for pattern in ["o3-", "o4-mini"]):
                                     # Use our special OpenAI reasoning model handler:
                                     response = self.create_openai_reasoning_response(
@@ -921,7 +1071,15 @@ class NewcombExperiment:
                                     max_tokens=self.max_tokens
                                 )
                             
-                            # Extract response text correctly:
+                            # Extract usage metrics if available:
+                            usage_counts = getattr(response, "usage", None)
+                            if not usage_counts and hasattr(response, "reasoning_tokens"):
+                                # Some wrappers put counts at top level:
+                                usage_counts = {
+                                    "reasoning_tokens": getattr(response, "reasoning_tokens", None)
+                                }
+
+                            # Extract response text:
                             response_text = response.choices[0].message.content
 
                             # Extract and analyze the response:
@@ -954,6 +1112,10 @@ class NewcombExperiment:
                             # Add reasoning content if available:
                             if reasoning_text:
                                 result['reasoning'] = reasoning_text
+
+                            # Add reasoning token count if available:
+                            if usage_counts:
+                                result['usage_statistics'] = usage_counts
                             
                             # Add alignment and correctness if a choice was extracted:
                             if extracted_choice:

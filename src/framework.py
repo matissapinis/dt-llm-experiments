@@ -10,12 +10,13 @@ from dotenv import load_dotenv
 
 class NewcombExperiment:
     """Framework for running batches of Newcomblike decision theory experiments with LLMs."""
-    
+
     def __init__(
         self,
         base_output_dir: str = "experiment_results",
         temperature: float = 0.8,
         max_tokens: int = 8192,
+        reasoning_effort: str = "medium",
         random_seed: Optional[int] = None
     ):
         # Load environment variables:
@@ -31,6 +32,7 @@ class NewcombExperiment:
         # Set general experiment parameters:
         self.temperature = temperature
         self.max_tokens = max_tokens
+        self.reasoning_effort = reasoning_effort
         self.system_prompt = ""
         self.models = []
         self.prompt_templates = {}
@@ -41,7 +43,7 @@ class NewcombExperiment:
         # Set random seed if provided:
         if random_seed is not None:
             random.seed(random_seed)
-    
+
     def extract_matrix_structure(self, structure):
         """Extract a short string representing the matrix structure."""
         if not structure:
@@ -53,7 +55,7 @@ class NewcombExperiment:
         
         # Create compact representation of structure:
         return f"{structure_type}_{cdt_pref}-{edt_pref}"
-    
+
     def validate_all_models(self, models: List[str]) -> List[str]:
         """Validate all models are available before proceeding with any experiments:"""
         print("\nValidating model availability...")
@@ -62,16 +64,36 @@ class NewcombExperiment:
         
         for model in models:
             try:
-                # Test with minimal token usage:
-                self.client.chat.completions.create(
-                    model=model,
-                    messages=[
-                        {"role": "system", "content": "."},
-                        {"role": "user", "content": "."}
-                    ],
-                    max_tokens=1,
-                    temperature=0
-                )
+                # Check if this is an OpenAI reasoning model:
+                if self.is_reasoning_model(model) and any(pattern in model for pattern in ["o3-", "o4-mini"]):
+                    # Use direct OpenAI client validation for reasoning models:
+                    import openai
+                    client = openai.OpenAI()
+                    
+                    # Extract the model name without the provider prefix:
+                    model_name = model.split(":")[-1] if ":" in model else model
+                    
+                    # Use minimal content for validation:
+                    response = client.responses.create(
+                        model=model_name,
+                        reasoning={"effort": "low"},
+                        input=[
+                            {"role": "user", "content": "."}
+                        ],
+                        max_output_tokens=16 # Minimal token usage.
+                    )
+                else:
+                    # Standard models or other reasoning models use regular validation:
+                    self.client.chat.completions.create(
+                        model=model,
+                        messages=[
+                            {"role": "system", "content": "."},
+                            {"role": "user", "content": "."}
+                        ],
+                        max_tokens=1,
+                        temperature=0
+                    )
+                
                 available_models.append(model)
                 print(f"✓ Available: {model}")
             except Exception as e:
@@ -86,7 +108,7 @@ class NewcombExperiment:
             raise RuntimeError(error_msg)
         
         return available_models
-    
+
     def set_models(self, models: List[str]) -> None:
         """Set list of models to use in experiments with strict validation:"""
         self.models = self.validate_all_models(models)
@@ -465,8 +487,60 @@ class NewcombExperiment:
         # DeepSeek reasoning models:
         if any(pattern in model for pattern in ["deepseek-reasoner"]):
             return True
+        # OpenAI reasoning models:
+        if any(pattern in model for pattern in ["o3-", "o4-mini"]):
+            return True
         # Add more reasoning models as needed:
         return False
+
+    def create_openai_reasoning_response(self, model, messages, reasoning_effort=None):
+        """Create a response using OpenAI's reasoning models through the Responses API."""
+        # Extract the model name without the provider prefix:
+        model_name = model.split(":")[-1] if ":" in model else model
+        
+        # Use instance reasoning_effort if none provided:
+        reasoning_effort = reasoning_effort or self.reasoning_effort
+        
+        # Prepare the input format for Responses API:
+        input_messages = [{"role": msg["role"], "content": msg["content"]} for msg in messages]
+        
+        # Set up reasoning parameters:
+        reasoning_params = {"effort": reasoning_effort}
+        
+        # Use the OpenAI client directly:
+        import openai
+        client = openai.OpenAI()
+        
+        # Call the API without the unsupported include parameter:
+        response = client.responses.create(
+            model=model_name,
+            reasoning=reasoning_params,
+            input=input_messages,
+            max_output_tokens=self.max_tokens
+        )
+        
+        # Format the response to match expected structure:
+        formatted_response = type('obj', (object,), {
+            'choices': [
+                type('obj', (object,), {
+                    'message': type('obj', (object,), {
+                        'content': response.output_text,
+                        'reasoning_content': None # Will be populated if we can get reasoning content.
+                    })
+                })
+            ]
+        })
+        
+        # Try to extract reasoning tokens usage if available:
+        try:
+            if hasattr(response, 'usage') and hasattr(response.usage, 'output_tokens_details'):
+                reasoning_tokens = response.usage.output_tokens_details.reasoning_tokens
+                formatted_response.choices[0].message.reasoning_content = f"[Used {reasoning_tokens} reasoning tokens] - Note: OpenAI API doesn't provide access to the full reasoning content."
+        except AttributeError:
+            # If the attribute doesn't exist, just continue
+            pass
+        
+        return formatted_response
 
     def run_experiments_with_question_types(
         self,
@@ -533,31 +607,39 @@ class NewcombExperiment:
                             # Special handling for reasoning models:
                             reasoning_text = None
                             kwargs = {}
-                            
-                            if self.is_reasoning_model(model):
-                                if "DeepSeek-R1" in model:
-                                    # DeepSeek R1 parameters:
-                                    kwargs["thinking"] = True
-                            
-                            # Make the API call:
-                            response = self.client.chat.completions.create(
-                                model=model,
-                                messages=messages,
-                                temperature=self.temperature,
-                                max_tokens=self.max_tokens,
-                                **kwargs
-                            )
-                            
-                            # Extract response text:
-                            response_text = response.choices[0].message.content
-                            
-                            # Extract reasoning if available:
+
                             if self.is_reasoning_model(model):
                                 if "deepseek-reasoner" in model:
-                                    # Extract DeepSeek R1 reasoning:
+                                    # DeepSeek doesn't need special parameters - just use standard API call:
+                                    response = self.client.chat.completions.create(
+                                        model=model,
+                                        messages=messages,
+                                        temperature=self.temperature,
+                                        max_tokens=self.max_tokens
+                                    )
+                                    
+                                    # Try to extract reasoning content:
                                     if hasattr(response.choices[0].message, "reasoning_content"):
                                         reasoning_text = response.choices[0].message.reasoning_content
+                                elif any(pattern in model for pattern in ["o3-", "o4-mini"]):
+                                    # Use our special OpenAI reasoning model handler:
+                                    response = self.create_openai_reasoning_response(
+                                        model=model,
+                                        messages=messages,
+                                        reasoning_effort="high"
+                                    )
+                            else:
+                                # Standard models use the regular API call:
+                                response = self.client.chat.completions.create(
+                                    model=model,
+                                    messages=messages,
+                                    temperature=self.temperature,
+                                    max_tokens=self.max_tokens
+                                )
                             
+                            # Extract response text correctly:
+                            response_text = response.choices[0].message.content
+
                             # Extract and analyze the response:
                             extracted_choice = self.extract_final_answer(response_text)
                             
@@ -582,12 +664,17 @@ class NewcombExperiment:
                                 'extracted_choice': extracted_choice
                             }
                             
-                            # Add reasoning if available
+                            # Add reasoning if available:
                             if reasoning_text:
                                 result['reasoning'] = reasoning_text
                                 result['is_reasoning_model'] = True
                             else:
                                 result['is_reasoning_model'] = False
+
+                            # Set reasoning model flag based on model type, not just reasoning content:
+                            result['is_reasoning_model'] = self.is_reasoning_model(model)
+                            if reasoning_text:
+                                result['reasoning'] = reasoning_text
                             
                             # Add alignment and correctness if a choice was extracted:
                             if extracted_choice:

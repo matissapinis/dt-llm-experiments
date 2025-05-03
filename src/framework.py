@@ -64,6 +64,13 @@ class NewcombExperiment:
         
         for model in models:
             try:
+                # Use specialized validation for Gemini models (due to direct REST API call implementation):
+                if "gemini" in model or (model.startswith("google:") and "gemini" in model):
+                    self.validate_gemini_model(model)
+                    available_models.append(model)
+                    print(f"✓ Available: {model}")
+                    continue
+
                 # Check if this is an OpenAI reasoning model:
                 if self.is_reasoning_model(model) and any(pattern in model for pattern in ["o3-", "o4-mini"]):
                     # Use direct OpenAI client validation for reasoning models:
@@ -126,6 +133,59 @@ class NewcombExperiment:
             raise RuntimeError(error_msg)
         
         return available_models
+
+    def validate_gemini_model(self, model: str) -> bool:
+        """Validate a Gemini model is available by making a minimal REST API call."""
+        # Extract the model name without the provider prefix:
+        model_name = model.split(":")[-1] if ":" in model else model
+        
+        # Import necessary libraries:
+        import os
+        import requests
+        
+        # Check for the presence of GOOGLE_API_KEY environment variable:
+        api_key = os.environ.get('GOOGLE_API_KEY')
+        if not api_key:
+            raise ValueError("GOOGLE_API_KEY environment variable is required for Gemini API")
+        
+        # Build a minimal API request payload:
+        api_url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent"
+        
+        minimal_payload = {
+            "contents": [
+                {
+                    "role": "user",
+                    "parts": [{"text": "."}] # Minimal content.
+                }
+            ],
+            "generationConfig": {
+                "maxOutputTokens": 1 # Request minimal output.
+            }
+        }
+        
+        try:
+            # Make a minimal API request:
+            response = requests.post(
+                f"{api_url}?key={api_key}",
+                headers={"Content-Type": "application/json"},
+                json=minimal_payload,
+                timeout=10 # Add a reasonable timeout.
+            )
+            
+            # Check if request was successful:
+            response.raise_for_status()
+            
+            # If we got here, validation succeeded:
+            return True
+            
+        except Exception as e:
+            # Log detailed error information:
+            print(f"Gemini validation error: {str(e)}")
+            if hasattr(e, 'response') and hasattr(e.response, 'text'):
+                print(f"Response error: {e.response.text}")
+            
+            # Validation failed:
+            raise e
 
     def set_models(self, models: List[str]) -> None:
         """Set list of models to use in experiments with strict validation:"""
@@ -511,6 +571,9 @@ class NewcombExperiment:
         # Anthropic reasoning models (with Extended Thinking):
         if "anthropic:" in model and "-extended-thinking" in model:
             return True
+        # Google reasoning models:
+        if "google:" in model and "gemini-2.5" in model:
+            return True
         # Add more reasoning models as needed:
         return False
 
@@ -558,7 +621,7 @@ class NewcombExperiment:
                 reasoning_tokens = response.usage.output_tokens_details.reasoning_tokens
                 formatted_response.choices[0].message.reasoning_content = f"[Used {reasoning_tokens} reasoning tokens] - Note: OpenAI API doesn't provide access to the full reasoning content."
         except AttributeError:
-            # If the attribute doesn't exist, just continue
+            # If the attribute doesn't exist, just continue:
             pass
         
         return formatted_response
@@ -628,6 +691,119 @@ class NewcombExperiment:
         })
         
         return formatted_response
+
+    def create_gemini_reasoning_response(self, model, messages, thinking_budget=16000):
+        """Create a response using Google's Gemini with Thinking via direct REST API."""
+        
+        # Extract the model name without the provider prefix:
+        model_name = model.split(":")[-1] if ":" in model else model
+        
+        # Import necessary libraries:
+        import os
+        import json
+        import requests
+        
+        # Check for the presence of GOOGLE_API_KEY environment variable:
+        api_key = os.environ.get('GOOGLE_API_KEY')
+        if not api_key:
+            raise ValueError("GOOGLE_API_KEY environment variable is required for Gemini API")
+        
+        # Extract system prompt and user prompt:
+        system_prompt = None
+        user_content = None
+        
+        for msg in messages:
+            if msg["role"] == "system":
+                system_prompt = msg["content"]
+            elif msg["role"] == "user":
+                user_content = msg["content"]
+        
+        # Build the API request payload (using v1beta):
+        api_url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent"
+        
+        payload = {
+            "contents": [
+                {
+                    "role": "user",
+                    "parts": [{"text": user_content}]
+                }
+            ],
+            "generationConfig": {
+                "temperature": self.temperature,
+                "maxOutputTokens": self.max_tokens,
+                "thinkingConfig": {
+                    "includeThoughts": True,
+                    "thinkingBudget": thinking_budget # 0-24576 tokens allowed.
+                }
+            }
+        }
+        
+        # Add system instruction if provided:
+        if system_prompt:
+            payload["systemInstruction"] = {"parts": [{"text": system_prompt}]}
+        
+        # Make the API request:
+        try:
+            response = requests.post(
+                f"{api_url}?key={api_key}",
+                headers={"Content-Type": "application/json"},
+                json=payload
+            )
+            
+            # Check if request was successful:
+            response.raise_for_status()
+            
+            # Parse the JSON response:
+            result = response.json()
+            
+            # Extract the response text:
+            response_text = ""
+            thinking_text = None
+            
+            if "candidates" in result and result["candidates"]:
+                candidate = result["candidates"][0]
+                
+                # Extract thinking content if available:
+                if "thinking" in candidate:
+                    thinking_text = candidate["thinking"]
+                
+                # Extract content text:
+                if "content" in candidate and "parts" in candidate["content"]:
+                    for part in candidate["content"]["parts"]:
+                        if "text" in part:
+                            response_text += part["text"]
+            
+            # Format the response to match our expected structure:
+            formatted_response = type('obj', (object,), {
+                'choices': [
+                    type('obj', (object,), {
+                        'message': type('obj', (object,), {
+                            'content': response_text,
+                            'reasoning_content': thinking_text
+                        })
+                    })
+                ]
+            })
+            
+            return formatted_response
+        
+        except Exception as e:
+            print(f"Error with Gemini API: {e}")
+            if hasattr(e, 'response') and hasattr(e.response, 'text'):
+                print(f"Response error: {e.response.text}")
+            
+            # Return an error response:
+            formatted_response = type('obj', (object,), {
+                'choices': [
+                    type('obj', (object,), {
+                        'message': type('obj', (object,), {
+                            'content': f"Error calling Gemini API: {str(e)}",
+                            'reasoning_content': None
+                        })
+                    })
+                ]
+            })
+            return formatted_response
 
     def run_experiments_with_question_types(
         self,
@@ -723,6 +899,17 @@ class NewcombExperiment:
                                         thinking_budget=32000 # Configurable!
                                     )
                                     # Extract the reasoning content from the response:
+                                    if hasattr(response.choices[0].message, "reasoning_content"):
+                                        reasoning_text = response.choices[0].message.reasoning_content
+                                elif "gemini" in model.lower():
+                                    # Use our direct Gemini API handler:
+                                    response = self.create_gemini_reasoning_response(
+                                        model=model,
+                                        messages=messages,
+                                        thinking_budget=16000
+                                    )
+                                    
+                                    # Extract reasoning content from response:
                                     if hasattr(response.choices[0].message, "reasoning_content"):
                                         reasoning_text = response.choices[0].message.reasoning_content
                             else:

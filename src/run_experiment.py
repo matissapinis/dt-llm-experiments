@@ -37,7 +37,7 @@ def main():
     #### TD: Find precise model names and test their availability:
     experiment.set_models([
         "openai:o3-2025-04-16", ### TD: Confirmed working.
-        "google:gemini-2.5-pro-preview-03-25",
+        "google:gemini-2.5-pro-preview-03-25", #### TD: Confirmed working.
         "anthropic:claude-3-7-sonnet-20250219-extended-thinking", #### TD: Confirmed working.
         "deepseek:deepseek-reasoner", #### TD: Confirmed working.
         "huggingface:Qwen3-235B-A22B",

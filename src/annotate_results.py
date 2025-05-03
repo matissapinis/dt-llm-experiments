@@ -199,6 +199,21 @@ def show_response(filename: str, parsed_dir: str = "parsed_results") -> None:
         print("-" * 80)
         print(result.get('response', 'No response found in file'))
         
+        # Print reasoning content if available:
+        if 'reasoning' in result and result['reasoning']:
+            print("\nMODEL REASONING:")
+            print("-" * 80)
+            print(result['reasoning'])
+            
+            # Print token usage info if available:
+            if 'usage_statistics' in result and result['usage_statistics']:
+                usage = result['usage_statistics']
+                print("\nTOKEN USAGE:")
+                print("-" * 80)
+                for key, value in usage.items():
+                    if value is not None: # Only print non-None values.
+                        print(f"{key}: {value}")
+        
         # Print decision theory recommendations:
         print("\nDECISION THEORY ANALYSIS:")
         print("-" * 80)

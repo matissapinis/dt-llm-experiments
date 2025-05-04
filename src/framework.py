@@ -1093,9 +1093,6 @@ class NewcombExperiment:
 
     def create_qwen3_response(self, api_key, model, messages, enable_thinking=True):
         """Create a response using Qwen3 models with or without Thinking Mode via the DashScope API."""
-        print(f"Calling Qwen3 API with model: {model}")
-        print(f"Thinking mode enabled: {enable_thinking}")
-
         # Import necessary libraries:
         import os
         from http import HTTPStatus
@@ -1145,7 +1142,6 @@ class NewcombExperiment:
 
             if thinking_enabled:
                 # For thinking mode, Alibaba Cloud / DashScope API requires using streaming mode for Qwen3:
-                print("Using streaming mode for thinking-enabled model")
                 params['stream'] = True
                 params['incremental_output'] = True
                 params['enable_thinking'] = True

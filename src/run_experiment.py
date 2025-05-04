@@ -12,44 +12,41 @@ def main():
         random_seed=42
     )
     
-    # Set models:
-    # Anthropic models (reasoning vs. single forward-pass) – https://docs.anthropic.com/en/docs/about-claude/models#model-names.
-    # OpenAI models (reasoning vs. single forward-pass) – https://openai.com/api/pricing/.
     """
     Reasoning models:
-        • o3: o3-2025-04-16 (OpenAI)
-        • Gemini 2.5 Pro: gemini-2.5-pro-preview-03-25 / gemini-2.5-pro-exp-03-25 (Google)
+        • DeepSeek R1: deepseek-reasoner (DeepSeek)
+        • Grok 3 Mini: grok-3-mini-beta (xAI)
         • Claude 3.7 Sonnet Extended Thinking: claude-3-7-sonnet-20250219 (Anthropic)
-        • DeepSeek R1: DeepSeek-R1 (DeepSeek)
-        • Qwen3-235B-A22B Thinking Mode: Qwen3-235B-A22B (Alibaba)
-        • Grok 3: grok-3-beta (xAI)
+        • Gemini 2.5 Pro: gemini-2.5-pro-preview-03-25 (Google)
+        • o3: o3-2025-04-16 (OpenAI)
         • o4-mini-high: o4-mini-2025-04-16 (OpenAI)
+        • Qwen3-235B-A22B Thinking Mode: qwen-plus-2025-04-28 (Alibaba)
 
     Single forward-pass models:
-        • GPT-4o: chatgpt-4o-latest (25/04/2029) (OpenAI)
-        • Gemini 2.5 Flash: gemini-2.5-flash-preview-04-17 (Google)
-        • Claude 3.7 Sonnet: claude-3-7-sonnet-20250219 (Anthropic)
-        • DeepSeek V3: DeepSeek-V3-0324 (DeepSeek)
-        • Qwen3-235B-A22B Non-Thinking Mode: Qwen3-235B-A22B (Alibaba)
+        • DeepSeek V3: deepseek-chat (DeepSeek)
         • Grok 3: grok-3-beta (xAI)
+        • Claude 3.7 Sonnet: claude-3-7-sonnet-20250219 (Anthropic)
+        • Gemini 2.5 Flash: gemini-2.5-flash-preview-04-17 (Google)
         • GPT-4.5: gpt-4.5-preview-2025-02-27 (OpenAI)
+        • GPT-4o: chatgpt-4o-latest (25/04/2029) (OpenAI)
+        • Qwen3-235B-A22B Non-Thinking Mode: qwen-plus-2025-04-28 (Alibaba)
     """
-    #### TD: Find precise model names and test their availability:
     experiment.set_models([
-        "openai:o3-2025-04-16", ### TD: Confirmed working.
-        "google:gemini-2.5-pro-preview-03-25", #### TD: Confirmed working.
-        "anthropic:claude-3-7-sonnet-20250219-extended-thinking", #### TD: Confirmed working.
-        "deepseek:deepseek-reasoner", #### TD: Confirmed working.
-        "huggingface:Qwen3-235B-A22B",
-        "xai:grok-3-mini-beta", #### TD: Confirmed working.
-        "openai:o4-mini-2025-04-16", #### TD: Confirmed working.
+        "deepseek:deepseek-reasoner",
+        "xai:grok-3-mini-beta",
+        "anthropic:claude-3-7-sonnet-20250219-extended-thinking",
+        "google:gemini-2.5-pro-preview-03-25",
+        "openai:o3-2025-04-16",
+        "openai:o4-mini-2025-04-16",
+        "alibaba:qwen-plus-2025-04-28-thinking-mode",
                 
-        "openai:chatgpt-4o-latest", #### TD: Confirmed working. 
+        "deepseek:deepseek-chat",
+        "xai:grok-3-beta",
+        "anthropic:claude-3-7-sonnet-20250219",
         "google:gemini-2.5-flash-preview-04-17",
-        "anthropic:claude-3-7-sonnet-20250219", #### TD: Confirmed working.
-        "deepseek:deepseek-chat", #### TD: Confirmed working.
-        "xai:grok-3-beta", #### TD: Confirmed working.
-        "openai:gpt-4.5-preview-2025-02-27" #### TD: Confirmed working.
+        "openai:gpt-4.5-preview-2025-02-27",
+        "openai:chatgpt-4o-latest",
+        "alibaba:qwen-plus-2025-04-28"
     ])
     
     # List available problems:

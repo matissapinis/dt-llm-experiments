@@ -78,6 +78,13 @@ class NewcombExperiment:
                     print(f"✓ Available: {model}")
                     continue
 
+                # Use specialized validation for Qwen models:
+                if "alibaba:" in model or any(pattern in model.lower() for pattern in ["qwen-"]):
+                    self.validate_qwen_model(model)
+                    available_models.append(model)
+                    print(f"✓ Available: {model}")
+                    continue
+
                 # Check if this is an OpenAI reasoning model:
                 if self.is_reasoning_model(model) and any(pattern in model for pattern in ["o3-", "o4-mini"]):
                     # Use direct OpenAI client validation for reasoning models:
@@ -242,6 +249,60 @@ class NewcombExperiment:
         except Exception as e:
             # Log detailed error information:
             print(f"xAI validation error: {str(e)}")
+            
+            # Validation failed:
+            raise e
+
+    def validate_qwen_model(self, model: str) -> bool:
+        """Validate a Qwen model is available by making a minimal API call."""
+        # Extract the model name without the provider prefix:
+        model_name = model.split(":")[-1] if ":" in model else model
+        
+        # Remove the "-thinking-mode" suffix if present:
+        if "-thinking-mode" in model_name:
+            model_name = model_name.replace("-thinking-mode", "")
+        
+        # Map to actual Qwen model names in DashScope:
+        qwen_api_models = {
+            "qwen-plus-2025-04-28": "qwen-plus-2025-04-28" # Direct mapping.
+        }
+        
+        # Look up the model in our mapping or use as-is if not found:
+        api_model_name = qwen_api_models.get(model_name, model_name)
+        
+        # Import necessary libraries:
+        import os
+        from http import HTTPStatus
+        from dashscope import Generation
+        import dashscope
+        
+        # Set international base URL for DashScope:
+        dashscope.base_http_api_url = 'https://dashscope-intl.aliyuncs.com/api/v1'
+        
+        # Check for the presence of DASHSCOPE_API_KEY environment variable:
+        api_key = os.environ.get('DASHSCOPE_API_KEY')
+        if not api_key:
+            raise ValueError("DASHSCOPE_API_KEY environment variable is required for DashScope API")
+        
+        try:
+            # Make a minimal API request:
+            response = Generation.call(
+                api_key=api_key,
+                model=api_model_name,
+                messages=[{'role': 'user', 'content': '.'}], # Minimal token usage.
+                max_tokens=1 # Request minimal output.
+            )
+            
+            # Check if request was successful:
+            if response.status_code != HTTPStatus.OK:
+                raise Exception(f"DashScope API error: {response.code}, message: {response.message}")
+            
+            # If we got here, validation succeeded:
+            return True
+            
+        except Exception as e:
+            # Log detailed error information:
+            print(f"Qwen validation error: {str(e)}")
             
             # Validation failed:
             raise e
@@ -637,6 +698,9 @@ class NewcombExperiment:
         if "xai:" in model:
             base_model = model.split(":")[-1]
             return any(pattern in base_model for pattern in ["grok-3-mini-beta", "grok-3-mini-fast-beta"])
+        # Qwen reasoning models (with Thinking Mode):
+        if "alibaba:" in model and "-thinking-mode" in model:
+            return True
         # Add more reasoning models as needed:
         return False
 
@@ -1027,6 +1091,186 @@ class NewcombExperiment:
             })
             return formatted_response
 
+    def create_qwen3_response(self, api_key, model, messages, enable_thinking=True):
+        """Create a response using Qwen3 models with or without Thinking Mode via the DashScope API."""
+        print(f"Calling Qwen3 API with model: {model}")
+        print(f"Thinking mode enabled: {enable_thinking}")
+
+        # Import necessary libraries:
+        import os
+        from http import HTTPStatus
+        from dashscope import Generation
+        import dashscope
+
+        # Set international base URL for DashScope
+        dashscope.base_http_api_url = 'https://dashscope-intl.aliyuncs.com/api/v1'
+
+        # Check for the presence of DASHSCOPE_API_KEY environment variable:
+        api_key = os.environ.get('DASHSCOPE_API_KEY')
+        if not api_key:
+            raise ValueError("DASHSCOPE_API_KEY environment variable is required for DashScope API")
+        
+        # Extract model name without provider prefix:
+        model_name = model.split(":")[-1] if ":" in model else model
+            
+        # Remove the "-thinking-mode" suffix if present to get the base model name:
+        if "-thinking-mode" in model_name:
+            base_model_name = model_name.replace("-thinking-mode", "")
+            has_thinking_suffix = True
+        else:
+            base_model_name = model_name
+            has_thinking_suffix = False
+        
+        # Determine if thinking mode should be enabled based on model suffix or parameter:
+        thinking_enabled = enable_thinking if enable_thinking is not None else has_thinking_suffix
+
+        # Convert messages to DashScope format:
+        dashscope_messages = []
+        for msg in messages:
+            dashscope_messages.append({
+                'role': msg["role"],
+                'content': msg["content"]
+            })
+        
+        try:
+            # Make the API call to DashScope with appropriate parameters – set common parameters for both streaming and non-streaming calls:
+            params = {
+                'api_key': api_key,
+                'model': base_model_name,
+                'messages': dashscope_messages,
+                'result_format': 'message',
+                'temperature': self.temperature,
+                'max_tokens': self.max_tokens
+            }
+
+            if thinking_enabled:
+                # For thinking mode, Alibaba Cloud / DashScope API requires using streaming mode for Qwen3:
+                print("Using streaming mode for thinking-enabled model")
+                params['stream'] = True
+                params['incremental_output'] = True
+                params['enable_thinking'] = True
+                
+                # Make streaming API call:
+                response_generator = Generation.call(**params)
+                
+                # Initialize variables to collect streaming output:
+                reasoning_content = ""
+                answer_content = ""
+                is_answering = False
+                
+                # Process streaming chunks:
+                for chunk in response_generator:
+                    if chunk.status_code != HTTPStatus.OK:
+                        raise Exception(f"DashScope API error: {chunk.code}, message: {chunk.message}")
+                    
+                    # Skip empty chunks:
+                    if (not hasattr(chunk, 'output') or 
+                        not hasattr(chunk.output, 'choices') or 
+                        len(chunk.output.choices) == 0):
+                        continue
+                    
+                    # Extract content from this chunk:
+                    chunk_message = chunk.output.choices[0].message
+                    
+                    # Process reasoning content:
+                    if hasattr(chunk_message, 'reasoning_content') and chunk_message.reasoning_content:
+                        reasoning_content += chunk_message.reasoning_content
+                    
+                    # Process regular content:
+                    if hasattr(chunk_message, 'content') and chunk_message.content:
+                        if not is_answering:
+                            is_answering = True
+                        answer_content += chunk_message.content
+            
+                # Construct a mock response object:
+                usage = {
+                    'prompt_tokens': None, # Not available in streaming mode.
+                    'completion_tokens': None,
+                    'total_tokens': None
+                }
+                
+                # If we have thinking content, estimate token count:
+                if reasoning_content:
+                    # DashScope doesn't provide a direct count for reasoning tokens – so we'll estimate (words × 1.3):
+                    thinking_token_count = len(reasoning_content.split()) * 1.3
+                    usage['thinking_tokens'] = int(thinking_token_count)
+                
+                # Create formatted response matching expected structure:
+                formatted_response = type('obj', (object,), {
+                    'choices': [
+                        type('obj', (object,), {
+                            'message': type('obj', (object,), {
+                                'content': answer_content,
+                                'reasoning_content': reasoning_content if reasoning_content else None
+                            })
+                        })
+                    ],
+                    'usage': usage,
+                    'reasoning_tokens': usage.get('thinking_tokens', None),
+                    'status_code': HTTPStatus.OK
+                })
+
+                return formatted_response
+            else:
+                # For non-thinking mode, use standard non-streaming call:
+                print("Using standard non-streaming mode")
+                response = Generation.call(**params)
+                
+                # Check if the request was successful:
+                if response.status_code != HTTPStatus.OK:
+                    raise Exception(f"DashScope API error: {response.code}, message: {response.message}")
+                
+                # Extract the response content:
+                content_text = ""
+                if hasattr(response, 'output') and hasattr(response.output, 'choices') and len(response.output.choices) > 0:
+                    content_text = response.output.choices[0].message.content
+                
+                # Extract usage statistics if available:
+                usage = {}
+                if hasattr(response, 'usage'):
+                    usage = {
+                        'prompt_tokens': getattr(response.usage, 'input_tokens', None),
+                        'completion_tokens': getattr(response.usage, 'output_tokens', None),
+                        'total_tokens': getattr(response.usage, 'total_tokens', None)
+                    }
+                
+                # Format the response to match our expected structure:
+                formatted_response = type('obj', (object,), {
+                    'choices': [
+                        type('obj', (object,), {
+                            'message': type('obj', (object,), {
+                                'content': content_text,
+                                'reasoning_content': None
+                            })
+                        })
+                    ],
+                    'usage': usage,
+                    'reasoning_tokens': None,
+                    'status_code': response.status_code
+                })
+                
+                return formatted_response
+
+        except Exception as e:
+            # Log error and return formatted error response:
+            print(f"Error with Qwen3 API: {e}")
+            
+            formatted_response = type('obj', (object,), {
+                'choices': [
+                    type('obj', (object,), {
+                        'message': type('obj', (object,), {
+                            'content': f"Error calling Qwen3 API: {str(e)}",
+                            'reasoning_content': None
+                        })
+                    })
+                ],
+                'usage': None,
+                'reasoning_tokens': None,
+                'status_code': 400
+            })
+
+            return formatted_response
+
     def run_experiments_with_question_types(
         self,
         question_types=['cdt_capability', 'edt_capability', 'normative_attitude', 'personal_attitude'],
@@ -1093,7 +1337,41 @@ class NewcombExperiment:
                             reasoning_text = None
                             kwargs = {}
 
-                            if self.is_reasoning_model(model):
+                            # Special handling for Alibaba/Qwen aisuite-unsupported models to bypass:
+                            if "alibaba:" in model:
+                                # Determine if this is a reasoning model that should use thinking mode:
+                                use_thinking_mode = self.is_reasoning_model(model)
+                                
+                                # Import necessary libraries:
+                                import os
+                                from http import HTTPStatus
+                                from dashscope import Generation
+                                import dashscope
+
+                                # Set international base URL for DashScope at the beginning of each call:
+                                dashscope.base_http_api_url = 'https://dashscope-intl.aliyuncs.com/api/v1'
+
+                                # Check for the presence of DASHSCOPE_API_KEY environment variable:
+                                api_key = os.environ.get('DASHSCOPE_API_KEY')
+                                if not api_key:
+                                    raise ValueError("DASHSCOPE_API_KEY environment variable is required for DashScope API")
+
+                                # Use our custom DashScope handler:
+                                response = self.create_qwen3_response(
+                                    api_key=api_key,
+                                    model=model,
+                                    messages=messages,
+                                    enable_thinking=use_thinking_mode
+                                )
+                                
+                                # Extract response text:
+                                response_text = response.choices[0].message.content
+                                
+                                # Extract reasoning content if available:
+                                reasoning_text = None
+                                if hasattr(response.choices[0].message, "reasoning_content"):
+                                    reasoning_text = response.choices[0].message.reasoning_content
+                            elif self.is_reasoning_model(model):
                                 if "deepseek-reasoner" in model:
                                     # DeepSeek doesn't need special parameters - just use standard API call:
                                     response = self.client.chat.completions.create(
@@ -1246,6 +1524,17 @@ class NewcombExperiment:
                                             model=model,
                                             messages=messages
                                         )
+                                elif "alibaba:" in model:
+                                    # Determine if this is a reasoning model that should use thinking mode:
+                                    use_thinking_mode = self.is_reasoning_model(model)
+                                    
+                                    # Use our custom DashScope handler:
+                                    response = self.create_qwen3_response(
+                                        api_key=api_key,
+                                        model=model,
+                                        messages=messages,
+                                        enable_thinking=use_thinking_mode
+                                    )
                             else:
                                 # Standard models use the regular API call:
                                 response = self.client.chat.completions.create(

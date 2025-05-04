@@ -16,7 +16,7 @@ class NewcombExperiment:
         base_output_dir: str = "experiment_results",
         temperature: float = 0.8,
         max_tokens: int = 8192,
-        reasoning_effort: str = "medium",
+        reasoning_effort: str = "high",
         random_seed: Optional[int] = None
     ):
         # Load environment variables:
@@ -67,6 +67,13 @@ class NewcombExperiment:
                 # Use specialized validation for Gemini models (due to direct REST API call implementation):
                 if "gemini" in model or (model.startswith("google:") and "gemini" in model):
                     self.validate_gemini_model(model)
+                    available_models.append(model)
+                    print(f"✓ Available: {model}")
+                    continue
+
+                # Use specialized validation for xAI models (due to direct REST API call implementation):
+                if "xai:" in model or model.startswith("grok-"):
+                    self.validate_xai_model(model)
                     available_models.append(model)
                     print(f"✓ Available: {model}")
                     continue
@@ -190,6 +197,51 @@ class NewcombExperiment:
             print(f"Gemini validation error: {str(e)}")
             if hasattr(e, 'response') and hasattr(e.response, 'text'):
                 print(f"Response error: {e.response.text}")
+            
+            # Validation failed:
+            raise e
+
+    def validate_xai_model(self, model: str) -> bool:
+        """Validate an xAI model is available by making a minimal REST API call."""
+        # Extract the model name without the provider prefix:
+        model_name = model.split(":")[-1] if ":" in model else model
+        
+        # Import necessary libraries:
+        import os
+        import openai
+        
+        # Check for the presence of XAI_API_KEY environment variable:
+        api_key = os.environ.get('XAI_API_KEY')
+        if not api_key:
+            raise ValueError("XAI_API_KEY environment variable is required for xAI API")
+        
+        try:
+            # Set up the OpenAI client with xAI base URL:
+            client = openai.OpenAI(
+                base_url="https://api.x.ai/v1",
+                api_key=api_key
+            )
+            
+            # Prepare minimal arguments:
+            kwargs = {
+                "model": model_name,
+                "messages": [{"role": "user", "content": "."}],
+                "max_tokens": 1
+            }
+            
+            # Add reasoning parameter if this is a reasoning model:
+            if self.is_reasoning_model(model):
+                kwargs["reasoning_effort"] = "low"
+            
+            # Make a minimal API request:
+            client.chat.completions.create(**kwargs)
+            
+            # If we got here, validation succeeded:
+            return True
+            
+        except Exception as e:
+            # Log detailed error information:
+            print(f"xAI validation error: {str(e)}")
             
             # Validation failed:
             raise e
@@ -581,6 +633,10 @@ class NewcombExperiment:
         # Google reasoning models:
         if "google:" in model and "gemini-2.5" in model:
             return True
+        # xAI reasoning models:
+        if "xai:" in model:
+            base_model = model.split(":")[-1]
+            return any(pattern in base_model for pattern in ["grok-3-mini-beta", "grok-3-mini-fast-beta"])
         # Add more reasoning models as needed:
         return False
 
@@ -866,6 +922,111 @@ class NewcombExperiment:
             })
             return formatted_response
 
+    def create_xai_response(self, model, messages, reasoning_effort=None):
+        """Create a response using xAI's Grok model via OpenAI client, with support for reasoning."""
+        
+        # Extract the model name without the provider prefix:
+        model_name = model.split(":")[-1] if ":" in model else model
+        
+        # Import necessary libraries:
+        import os
+        import openai
+        
+        # Check for the presence of XAI_API_KEY environment variable:
+        api_key = os.environ.get('XAI_API_KEY')
+        if not api_key:
+            raise ValueError("XAI_API_KEY environment variable is required for xAI API")
+        
+        # Use instance reasoning_effort if none provided:
+        reasoning_effort = reasoning_effort or self.reasoning_effort
+        
+        # Set up the OpenAI client with xAI base URL:
+        client = openai.OpenAI(
+            base_url="https://api.x.ai/v1",
+            api_key=api_key
+        )
+        
+        # Prepare API arguments:
+        kwargs = {
+            "model": model_name,
+            "messages": messages,
+            "temperature": self.temperature,
+            "max_tokens": self.max_tokens
+        }
+        
+        # Add reasoning parameter if this is a reasoning model:
+        if self.is_reasoning_model(model) and reasoning_effort:
+            # xAI reasoning models only accept "low" or "high" as values:
+            valid_effort = "high" if reasoning_effort.lower() in ["high", "medium"] else "low"
+            kwargs["reasoning_effort"] = valid_effort
+        
+        # Make the API request:
+        try:
+            completion = client.chat.completions.create(**kwargs)
+            
+            # Extract the response content:
+            response_text = completion.choices[0].message.content
+            
+            # Try to access reasoning content:
+            reasoning_text = None
+            try:
+                reasoning_text = completion.choices[0].message.reasoning_content
+            except Exception as e:
+                print(f"    Error accessing reasoning_content: {e}")
+            
+            # Extract usage statistics:
+            usage = {}
+            try:
+                if hasattr(completion, "usage"):
+                    usage = {
+                        "prompt_tokens": getattr(completion.usage, "prompt_tokens", None),
+                        "completion_tokens": getattr(completion.usage, "completion_tokens", None),
+                        "total_tokens": getattr(completion.usage, "total_tokens", None)
+                    }
+                    
+                    # Try to access reasoning tokens:
+                    if hasattr(completion.usage, "completion_tokens_details"):
+                        details = completion.usage.completion_tokens_details
+                        if hasattr(details, "reasoning_tokens"):
+                            reasoning_tokens = details.reasoning_tokens
+                            usage["reasoning_tokens"] = reasoning_tokens
+            except Exception as e:
+                print(f"    Error accessing usage statistics: {e}")
+            
+            # Format the response to match our expected structure:
+            formatted_response = type('obj', (object,), {
+                'choices': [
+                    type('obj', (object,), {
+                        'message': type('obj', (object,), {
+                            'content': response_text,
+                            'reasoning_content': reasoning_text
+                        })
+                    })
+                ],
+                'usage': usage,
+                'reasoning_tokens': usage.get("reasoning_tokens")
+            })
+            
+            return formatted_response
+            
+        except Exception as e:
+            print(f"Error with xAI API (via OpenAI client): {str(e)}")
+            
+            # Return an error response:
+            formatted_response = type('obj', (object,), {
+                'choices': [
+                    type('obj', (object,), {
+                        'message': type('obj', (object,), {
+                            'content': f"Error calling xAI API: {str(e)}",
+                            'reasoning_content': None
+                        })
+                    })
+                ],
+                'usage': None,
+                'reasoning_tokens': None
+            })
+            return formatted_response
+
     def run_experiments_with_question_types(
         self,
         question_types=['cdt_capability', 'edt_capability', 'normative_attitude', 'personal_attitude'],
@@ -1062,6 +1223,29 @@ class NewcombExperiment:
                                     # Extract reasoning content from response:
                                     if hasattr(response.choices[0].message, "reasoning_content"):
                                         reasoning_text = response.choices[0].message.reasoning_content
+                                elif "xai:" in model or model.startswith("grok-"):
+                                    # Use custom xAI handler with reasoning support if applicable:
+                                    if self.is_reasoning_model(model):
+                                        # Use reasoning version for reasoning models:
+                                        response = self.create_xai_response(
+                                            model=model,
+                                            messages=messages,
+                                            reasoning_effort="high" # Configurable!
+                                        )
+
+                                        # Extract response text:
+                                        response_text = response.choices[0].message.content
+
+                                        # Extract reasoning content if available:
+                                        reasoning_text = None
+                                        if hasattr(response.choices[0].message, "reasoning_content"):
+                                            reasoning_text = response.choices[0].message.reasoning_content
+                                    else:
+                                        # Standard version for non-reasoning models:
+                                        response = self.create_xai_response(
+                                            model=model,
+                                            messages=messages
+                                        )
                             else:
                                 # Standard models use the regular API call:
                                 response = self.client.chat.completions.create(
@@ -1123,7 +1307,25 @@ class NewcombExperiment:
 
                             # Add reasoning token count if available:
                             if usage_counts:
-                                result['usage_statistics'] = usage_counts
+                                # Create a clean dictionary with primitive values only:
+                                clean_usage = {}
+                                for key, value in usage_counts.items():
+                                    # Ensure all values are JSON serializable:
+                                    if isinstance(value, (int, float, str, bool, type(None))):
+                                        clean_usage[key] = value
+                                    else:
+                                        # Convert non-primitive types to strings:
+                                        clean_usage[key] = str(value)
+                                
+                                # Only add non-empty dictionary:
+                                if clean_usage:
+                                    result['usage_statistics'] = clean_usage
+
+                            # Additional handling for reasoning tokens at top level:
+                            if hasattr(response, "reasoning_tokens") and response.reasoning_tokens is not None:
+                                if 'usage_statistics' not in result:
+                                    result['usage_statistics'] = {}
+                                result['usage_statistics']['reasoning_tokens'] = response.reasoning_tokens
                             
                             # Add alignment and correctness if a choice was extracted:
                             if extracted_choice:
@@ -1152,6 +1354,13 @@ class NewcombExperiment:
                             # Create filename with the desired components:
                             filename = f"{self.launch_timestamp}_{result['timestamp']}_{template_name}_{matrix_structure}_{question_type}_{model.replace(':', '_')}.json"
                             
+                            # Ensure all nested dictionaries have serializable values:
+                            if 'usage_statistics' in result:
+                                for key in list(result['usage_statistics'].keys()):
+                                    value = result['usage_statistics'][key]
+                                    if not isinstance(value, (int, float, str, bool, type(None))):
+                                        result['usage_statistics'][key] = str(value)
+
                             filepath = self.base_output_dir / filename
                             with open(filepath, 'w') as f:
                                 json.dump(result, f, indent=2)

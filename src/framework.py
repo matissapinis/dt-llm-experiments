@@ -159,7 +159,11 @@ class NewcombExperiment:
         """Validate a Gemini model is available by making a minimal REST API call."""
         # Extract the model name without the provider prefix:
         model_name = model.split(":")[-1] if ":" in model else model
-        
+
+        # If model has thinking-mode suffix, remove it for the actual API call:
+        if "-thinking-mode" in model_name:
+            model_name = model_name.replace("-thinking-mode", "")
+
         # Import necessary libraries:
         import os
         import requests
@@ -692,8 +696,15 @@ class NewcombExperiment:
         if "anthropic:" in model and "-extended-thinking" in model:
             return True
         # Google reasoning models:
-        if "google:" in model and "gemini-2.5" in model:
-            return True
+        if "google:" in model:
+            if "gemini-2.5-pro" in model:
+                # Gemini 2.5 Pro is always reasoning (cannot disable):
+                return True
+            elif "gemini-2.5-flash" in model and "-thinking-mode" in model:
+                # Gemini 2.5 Flash with thinking mode explicitly enabled:
+                return True
+            # Base Gemini 2.5 Flash is a hybrid but we won't treat as reasoning by default:
+            return False
         # xAI reasoning models:
         if "xai:" in model:
             base_model = model.split(":")[-1]
@@ -860,6 +871,13 @@ class NewcombExperiment:
         
         # Extract the model name without the provider prefix:
         model_name = model.split(":")[-1] if ":" in model else model
+
+        # Determine if thinking mode should be enabled based on the budget parameter:
+        enable_thinking = thinking_budget > 0
+
+        # If model has thinking-mode suffix, remove it for the actual API call:
+        if "-thinking-mode" in model_name:
+            model_name = model_name.replace("-thinking-mode", "")
         
         # Import necessary libraries:
         import os
@@ -893,12 +911,13 @@ class NewcombExperiment:
             ],
             "generationConfig": {
                 "temperature": self.temperature,
-                "maxOutputTokens": self.max_tokens,
-                "thinkingConfig": {
-                    "includeThoughts": True,
-                    "thinkingBudget": thinking_budget # 0-24576 tokens allowed.
-                }
+                "maxOutputTokens": self.max_tokens
             }
+        }
+
+        # Always send a thinkingConfig – 0 disables reasoning, >0 enables it:
+        payload["generationConfig"]["thinkingConfig"] = {
+            "thinkingBudget": int(thinking_budget)
         }
         
         # Add system instruction if provided:
@@ -931,7 +950,7 @@ class NewcombExperiment:
             
             # Extract usage metadata:
             usage = extract_gemini_usage(result)
-            reasoning_tokens = usage.get("thought_tokens")
+            reasoning_tokens = usage.get("thought_tokens", 0)
             
             # Extract the response text:
             response_text = ""
@@ -1333,8 +1352,19 @@ class NewcombExperiment:
                             reasoning_text = None
                             kwargs = {}
 
+                            # Special handling for all Gemini models:
+                            if "gemini" in model.lower() or (model.startswith("google:") and "gemini" in model):
+                                # Determine if thinking mode should be used based on model suffix:
+                                use_thinking = "-thinking-mode" in model
+                                
+                                # Use direct REST API handler:
+                                response = self.create_gemini_reasoning_response(
+                                    model=model,
+                                    messages=messages,
+                                    thinking_budget=16000 if use_thinking else 0
+                                )
                             # Special handling for Alibaba/Qwen aisuite-unsupported models to bypass:
-                            if "alibaba:" in model:
+                            elif "alibaba:" in model:
                                 # Determine if this is a reasoning model that should use thinking mode:
                                 use_thinking_mode = self.is_reasoning_model(model)
                                 
@@ -1484,17 +1514,6 @@ class NewcombExperiment:
                                         thinking_budget=32000 # Configurable!
                                     )
                                     # Extract the reasoning content from the response:
-                                    if hasattr(response.choices[0].message, "reasoning_content"):
-                                        reasoning_text = response.choices[0].message.reasoning_content
-                                elif "gemini" in model.lower():
-                                    # Use our direct Gemini API handler:
-                                    response = self.create_gemini_reasoning_response(
-                                        model=model,
-                                        messages=messages,
-                                        thinking_budget=16000
-                                    )
-                                    
-                                    # Extract reasoning content from response:
                                     if hasattr(response.choices[0].message, "reasoning_content"):
                                         reasoning_text = response.choices[0].message.reasoning_content
                                 elif "xai:" in model or model.startswith("grok-"):

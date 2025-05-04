@@ -1072,8 +1072,16 @@ class NewcombExperiment:
                                 )
                             
                             # Extract usage metrics if available:
-                            usage_counts = getattr(response, "usage", None)
-                            if not usage_counts and hasattr(response, "reasoning_tokens"):
+                            usage_counts = None
+                            usage_obj = getattr(response, "usage", None)
+                            if usage_obj:
+                                # Convert CompletionUsage to a serializable dictionary:
+                                usage_counts = {
+                                    "prompt_tokens": getattr(usage_obj, "prompt_tokens", None),
+                                    "completion_tokens": getattr(usage_obj, "completion_tokens", None),
+                                    "total_tokens": getattr(usage_obj, "total_tokens", None)
+                                }
+                            elif hasattr(response, "reasoning_tokens"):
                                 # Some wrappers put counts at top level:
                                 usage_counts = {
                                     "reasoning_tokens": getattr(response, "reasoning_tokens", None)

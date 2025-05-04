@@ -48,7 +48,7 @@ def main():
         "anthropic:claude-3-7-sonnet-20250219", #### TD: Confirmed working.
         "deepseek:DeepSeek-V3-0324",
         "xai:grok-3-latest",
-        "openai:gpt-4.5-preview-2025-02-27"
+        "openai:gpt-4.5-preview-2025-02-27" #### TD: Confirmed working.
     ])
     
     # List available problems:

@@ -17,6 +17,7 @@ def main():
         • DeepSeek R1: deepseek-reasoner (DeepSeek)
         • Grok 3 Mini: grok-3-mini-beta (xAI)
         • Claude 3.7 Sonnet Extended Thinking: claude-3-7-sonnet-20250219 (Anthropic)
+        • Gemini 2.5 Flash Thinking Mode: gemini-2.5-flash-preview-04-17 (Google)
         • Gemini 2.5 Pro: gemini-2.5-pro-preview-03-25 (Google)
         • o3: o3-2025-04-16 (OpenAI)
         • o4-mini-high: o4-mini-2025-04-16 (OpenAI)
@@ -29,12 +30,13 @@ def main():
         • Gemini 2.5 Flash: gemini-2.5-flash-preview-04-17 (Google)
         • GPT-4.5: gpt-4.5-preview-2025-02-27 (OpenAI)
         • GPT-4o: chatgpt-4o-latest (25/04/2029) (OpenAI)
-        • Qwen3-235B-A22B Non-Thinking Mode: qwen-plus-2025-04-28 (Alibaba)
+        • Qwen3-235B-A22B: qwen-plus-2025-04-28 (Alibaba)
     """
     experiment.set_models([
         "deepseek:deepseek-reasoner",
         "xai:grok-3-mini-beta",
         "anthropic:claude-3-7-sonnet-20250219-extended-thinking",
+        "google:gemini-2.5-flash-preview-04-17-thinking-mode",
         "google:gemini-2.5-pro-preview-03-25",
         "openai:o3-2025-04-16",
         "openai:o4-mini-2025-04-16",

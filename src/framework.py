@@ -365,12 +365,41 @@ class NewcombExperiment:
                     self.param_config = config_data["parameters"]
                 else:
                     self.param_config = {}
+
+                # Extract row order:
+                self.row_order = config_data.get("row_order", "12") # Default to "12" if not specified.
             else:
                 # Legacy format:
                 self.problem_type = None
                 self.problem_theme = None 
                 self.problem_structure = None
                 self.param_config = config_data
+                self.row_order = "12" # Default for legacy format.
+
+    def get_choice_mapping(self, row_order: str = "12") -> Dict[str, str]:
+        """Get the correct mapping from choices A/B to one-box/two-box based on row order."""
+        if row_order == "12":
+            # Standard mapping – A represents one-box, B represents two-box:
+            return {
+                'one-box': 'A',
+                'two-box': 'B',
+                'indifferent': 'AB'
+            }
+        elif row_order == "21":
+            # Swapped mapping – A represents two-box, B represents one-box:
+            return {
+                'one-box': 'B',
+                'two-box': 'A',
+                'indifferent': 'AB'
+            }
+        else:
+            # Default to standard mapping if row_order is unrecognized:
+            print(f"Warning: Unrecognized row_order '{row_order}', using standard mapping")
+            return {
+                'one-box': 'A',
+                'two-box': 'B',
+                'indifferent': 'AB'
+            }
 
     def list_problems(self) -> List[str]:
         """List all available problems in config directory:"""
@@ -414,6 +443,11 @@ class NewcombExperiment:
         y = params.get('y', 0)
         c = params.get('c', 0)
         p = params.get('p', 0.99)
+
+        # Apply inverse transformation if needed:
+        if structure and structure.get('type') == 'inverse':
+            x = -x
+            c = -c
 
         # Derive z and w from x, y, and c (transparent box):
         z = x + c
@@ -491,13 +525,19 @@ class NewcombExperiment:
         # If we've tried max_attempts and couldn't satisfy constraints:
         raise ValueError(f"Could not generate parameters satisfying structure constraints after {max_attempts} attempts")
     
-    def calculate_expected_utilities(self, params):
+    def calculate_expected_utilities(self, params, structure=None):
         """Calculate expected utilities under CDT and EDT for each action."""
         # Extract parameters:
         x = params.get('x', 0)
         y = params.get('y', 0)
         c = params.get('c', 0)
         p = params.get('p', 0.99)
+
+        # Check if this is an inverse structure:
+        if structure and structure.get('type') == 'inverse':
+            # For inverse structure, negate x and c:
+            x = -x
+            c = -c
 
         # Derive payoff values for two-boxing:
         z = x + c
@@ -563,12 +603,9 @@ class NewcombExperiment:
         cdt_preference = preferred_actions.get('cdt_preference', '')
         edt_preference = preferred_actions.get('edt_preference', '')
         
-        # Map preferences to choices:
-        preference_to_choice = {
-            'one-box': 'A',
-            'two-box': 'B',
-            'indifferent': 'AB' # Both A and B are acceptable for indifferent.
-        }
+        # Map preferences to choices using row_order:
+        row_order = getattr(self, 'row_order', "12") # Default to "12" if not set.
+        preference_to_choice = self.get_choice_mapping(row_order)
         
         cdt_recommended = preference_to_choice.get(cdt_preference, '')
         edt_recommended = preference_to_choice.get(edt_preference, '')
@@ -580,22 +617,15 @@ class NewcombExperiment:
 
     def check_correctness(self, choice: str, question_type: str, preferred_actions: Dict[str, str]) -> Optional[bool]:
         """Check if the choice is correct for capability questions."""
+        row_order = getattr(self, 'row_order', "12") # Default to "12" if not set.
+        preference_to_choice = self.get_choice_mapping(row_order)
+
         if question_type == 'cdt_capability':
             cdt_preference = preferred_actions.get('cdt_preference', '')
-            preference_to_choice = {
-                'one-box': 'A',
-                'two-box': 'B',
-                'indifferent': 'AB' # Both A and B are acceptable for indifferent.
-            }
             cdt_recommended = preference_to_choice.get(cdt_preference, '')
             return choice in cdt_recommended
         elif question_type == 'edt_capability':
             edt_preference = preferred_actions.get('edt_preference', '')
-            preference_to_choice = {
-                'one-box': 'A',
-                'two-box': 'B',
-                'indifferent': 'AB' # Both A and B are acceptable for indifferent.
-            }
             edt_recommended = preference_to_choice.get(edt_preference, '')
             return choice in edt_recommended
         return None # Not applicable for attitude questions.
@@ -620,7 +650,7 @@ class NewcombExperiment:
                     params = self.generate_parameters(self.param_config, self.problem_structure)
                     
                     # Calculate expected utilities and preferred actions (ground truth):
-                    expected_utilities = self.calculate_expected_utilities(params)
+                    expected_utilities = self.calculate_expected_utilities(params, self.problem_structure)
                     preferred_actions = self.determine_preferred_actions(expected_utilities)
                     
                     # Format prompt with parameters:
@@ -1228,7 +1258,6 @@ class NewcombExperiment:
                 return formatted_response
             else:
                 # For non-thinking mode, use standard non-streaming call:
-                print("Using standard non-streaming mode")
                 response = Generation.call(**params)
                 
                 # Check if the request was successful:
@@ -1319,7 +1348,7 @@ class NewcombExperiment:
                 
                 # Generate one set of parameters for all models and question types:
                 params = self.generate_parameters(self.param_config, self.problem_structure)
-                expected_utilities = self.calculate_expected_utilities(params)
+                expected_utilities = self.calculate_expected_utilities(params, self.problem_structure)
                 preferred_actions = self.determine_preferred_actions(expected_utilities)
                 
                 # Format prompt with parameters:
@@ -1597,6 +1626,7 @@ class NewcombExperiment:
                                 'problem_type': self.problem_type,
                                 'problem_theme': self.problem_theme,
                                 'problem_structure': self.problem_structure,
+                                'row_order': self.row_order,
                                 'expected_utilities': expected_utilities,
                                 'preferred_actions': preferred_actions,
                                 'extracted_choice': extracted_choice
@@ -1606,24 +1636,26 @@ class NewcombExperiment:
                             result['is_reasoning_model'] = self.is_reasoning_model(model)
 
                             # Add reasoning content if available:
-                            if reasoning_text:
+                            reasoning_text = None
+                            if hasattr(response.choices[0].message, "reasoning_content"):
+                                reasoning_text = response.choices[0].message.reasoning_content
                                 result['reasoning'] = reasoning_text
 
-                            # Add reasoning token count if available:
-                            if usage_counts:
-                                # Create a clean dictionary with primitive values only:
-                                clean_usage = {}
-                                for key, value in usage_counts.items():
-                                    # Ensure all values are JSON serializable:
-                                    if isinstance(value, (int, float, str, bool, type(None))):
-                                        clean_usage[key] = value
-                                    else:
-                                        # Convert non-primitive types to strings:
-                                        clean_usage[key] = str(value)
+                            # Add usage statistics:
+                            if hasattr(response, 'usage') and response.usage:
+                                usage_dict = {}
+                                for attr in ['prompt_tokens', 'completion_tokens', 'total_tokens']:
+                                    if hasattr(response.usage, attr):
+                                        usage_dict[attr] = getattr(response.usage, attr)
+
+                                # Check for reasoning tokens:
+                                if hasattr(response.usage, 'completion_tokens_details'):
+                                    details = response.usage.completion_tokens_details
+                                    if hasattr(details, 'reasoning_tokens'):
+                                        usage_dict['reasoning_tokens'] = details.reasoning_tokens
                                 
-                                # Only add non-empty dictionary:
-                                if clean_usage:
-                                    result['usage_statistics'] = clean_usage
+                                if usage_dict:
+                                    result['usage_statistics'] = usage_dict
 
                             # Additional handling for reasoning tokens at top level:
                             if hasattr(response, "reasoning_tokens") and response.reasoning_tokens is not None:

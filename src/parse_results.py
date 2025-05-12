@@ -14,17 +14,38 @@ def extract_final_answer(response_text: str) -> Optional[str]:
         return match.group(1).upper() # Normalize to uppercase.
     return None
 
-def determine_alignment(choice: str, preferred_actions: Dict[str, str]) -> Dict[str, bool]:
+def get_choice_mapping(row_order: str = "12") -> Dict[str, str]:
+    """Get the correct mapping from choices A/B to one-box/two-box based on row order."""
+    if row_order == "12":
+        # Standard mapping – A represents one-box, B represents two-box:
+        return {
+            'one-box': 'A',
+            'two-box': 'B',
+            'indifferent': 'AB'
+        }
+    elif row_order == "21":
+        # Swapped mapping – A represents two-box, B represents one-box:
+        return {
+            'one-box': 'B',
+            'two-box': 'A',
+            'indifferent': 'AB'
+        }
+    else:
+        # Default to standard mapping if row_order is unrecognized:
+        print(f"Warning: Unrecognized row_order '{row_order}', using standard mapping")
+        return {
+            'one-box': 'A',
+            'two-box': 'B',
+            'indifferent': 'AB'
+        }
+
+def determine_alignment(choice: str, preferred_actions: Dict[str, str], row_order: str = "12") -> Dict[str, bool]:
     """Determine if choice aligns with CDT and/or EDT recommendations."""
     cdt_preference = preferred_actions.get('cdt_preference', '')
     edt_preference = preferred_actions.get('edt_preference', '')
     
     # Map preferences to choices:
-    preference_to_choice = {
-        'one-box': 'A',
-        'two-box': 'B',
-        'indifferent': 'AB' # Both A and B are acceptable for indifferent.
-    }
+    preference_to_choice = get_choice_mapping(row_order)
     
     cdt_recommended = preference_to_choice.get(cdt_preference, '')
     edt_recommended = preference_to_choice.get(edt_preference, '')
@@ -65,7 +86,7 @@ def determine_theory_choices(expected_utilities: Dict[str, float]) -> Dict[str, 
         'edt_recommended_choice': edt_choice
     }
 
-def create_calculation_formulas(params: Dict[str, Any]) -> Dict[str, str]:
+def create_calculation_formulas(params: Dict[str, Any], structure: Dict[str, Any] = None) -> Dict[str, str]:
     """Create human-readable formula strings for expected utilities."""
     # Extract parameters:
     x = params.get('x', 0)
@@ -73,17 +94,22 @@ def create_calculation_formulas(params: Dict[str, Any]) -> Dict[str, str]:
     c = params.get('c', 0)
     p = params.get('p', params.get('p', 0.99))
 
+    # Apply inverse transformation if needed:
+    if structure and structure.get('type') == 'inverse':
+        x = -x
+        c = -c
+
     # Derive payoff values for two-boxing:
     z = x + c
     w = y + c
     
     # CDT formulas (causal expected utility):
-    cdt_one_box_formula = f"0.5 * {x} + 0.5 * {y} = {0.5 * x + 0.5 * y}"
-    cdt_two_box_formula = f"0.5 * {z} + 0.5 * {w} = {0.5 * z + 0.5 * w}"
+    cdt_one_box_formula = f"EU_CDT(A) = 0.5 * {x} + 0.5 * {y} = {0.5 * x + 0.5 * y}"
+    cdt_two_box_formula = f"EU_CDT(B) = 0.5 * {z} + 0.5 * {w} = {0.5 * z + 0.5 * w}"
     
     # EDT formulas (evidential expected utility):
-    edt_one_box_formula = f"{p} * {x} + (1 - {p}) * {y} = {p * x + (1 - p) * y}"
-    edt_two_box_formula = f"(1 - {p}) * {z} + {p} * {w} = {(1 - p) * z + p * w}"
+    edt_one_box_formula = f"EU_EDT(A) = {p} * {x} + (1 - {p}) * {y} = {p * x + (1 - p) * y}"
+    edt_two_box_formula = f"EU_EDT(B) = (1 - {p}) * {z} + {p} * {w} = {(1 - p) * z + p * w}"
     
     return {
         'cdt_one_box_formula': cdt_one_box_formula,
@@ -92,24 +118,17 @@ def create_calculation_formulas(params: Dict[str, Any]) -> Dict[str, str]:
         'edt_two_box_formula': edt_two_box_formula
     }
 
-def check_correctness(choice: str, question_type: str, preferred_actions: Dict[str, str]) -> Optional[bool]:
+def check_correctness(choice: str, question_type: str, preferred_actions: Dict[str, str], row_order: str = "12") -> Optional[bool]:
     """Check if the choice is correct for capability questions."""
+    # Use the correct mapping based on row order:
+    preference_to_choice = get_choice_mapping(row_order)
+
     if question_type == 'cdt_capability':
         cdt_preference = preferred_actions.get('cdt_preference', '')
-        preference_to_choice = {
-            'one-box': 'A',
-            'two-box': 'B',
-            'indifferent': 'AB' # Both A and B are acceptable for indifferent.
-        }
         cdt_recommended = preference_to_choice.get(cdt_preference, '')
         return choice in cdt_recommended
     elif question_type == 'edt_capability':
         edt_preference = preferred_actions.get('edt_preference', '')
-        preference_to_choice = {
-            'one-box': 'A',
-            'two-box': 'B',
-            'indifferent': 'AB' # Both A and B are acceptable for indifferent.
-        }
         edt_recommended = preference_to_choice.get(edt_preference, '')
         return choice in edt_recommended
     return None # Not applicable for attitude questions.
@@ -175,6 +194,8 @@ def parse_experiment_results(results_dir: str = "experiment_results", output_dir
             preferred_actions = result.get('preferred_actions', {})
             parameters = result.get('parameters', {})
             expected_utilities = result.get('expected_utilities', {})
+            row_order = result.get('row_order', '12') # Default to "12" if not specified.
+            structure = result.get('problem_structure', {})
 
             # Preserve reasoning data if present:
             if 'reasoning' in result:
@@ -193,7 +214,7 @@ def parse_experiment_results(results_dir: str = "experiment_results", output_dir
             
             # Add calculation formulas:
             if parameters:
-                formulas = create_calculation_formulas(parameters)
+                formulas = create_calculation_formulas(parameters, structure)
                 result['calculation_formulas'] = formulas
             
             # If there's an existing manual annotation, preserve it:
@@ -201,7 +222,7 @@ def parse_experiment_results(results_dir: str = "experiment_results", output_dir
                 result['extracted_choice'] = existing_annotation
                 # Restore all annotation metadata:
                 for key, value in annotation_metadata.items():
-                    if value is not None:  # Only copy non-None values
+                    if value is not None: # Only copy non-None values.
                         result[key] = value
             else:
                 # Otherwise, extract final answer from the response:
@@ -211,8 +232,8 @@ def parse_experiment_results(results_dir: str = "experiment_results", output_dir
                 if final_answer:
                     total_with_final_answer += 1
                     
-                    # Determine alignment with CDT and EDT:
-                    alignment = determine_alignment(final_answer, preferred_actions)
+                    # Determine alignment with CDT and EDT using row_order:
+                    alignment = determine_alignment(final_answer, preferred_actions, row_order)
                     result['cdt_aligned'] = alignment['cdt_aligned']
                     result['edt_aligned'] = alignment['edt_aligned']
                     
@@ -226,8 +247,8 @@ def parse_experiment_results(results_dir: str = "experiment_results", output_dir
                     else:
                         alignment_counts["neither"] += 1
                     
-                    # Check correctness for capability questions:
-                    correctness = check_correctness(final_answer, question_type, preferred_actions)
+                    # Check correctness for capability questions with row_order:
+                    correctness = check_correctness(final_answer, question_type, preferred_actions, row_order)
                     if correctness is not None:
                         result['correct_capability_answer'] = correctness
                         if correctness:

@@ -78,6 +78,31 @@ def list_missing_choices(parsed_dir: str = "parsed_results") -> List[str]:
     
     return missing_files
 
+def get_choice_mapping(row_order: str = "12") -> Dict[str, str]:
+    """Get the correct mapping from choices A/B to one-box/two-box based on row order."""
+    if row_order == "12":
+        # Standard mapping – A represents one-box, B represents two-box:
+        return {
+            'one-box': 'A',
+            'two-box': 'B',
+            'indifferent': 'AB'
+        }
+    elif row_order == "21":
+        # Swapped mapping – A represents two-box, B represents one-box:
+        return {
+            'one-box': 'B',
+            'two-box': 'A',
+            'indifferent': 'AB'
+        }
+    else:
+        # Default to standard mapping if row_order is unrecognized:
+        print(f"Warning: Unrecognized row_order '{row_order}', using standard mapping")
+        return {
+            'one-box': 'A',
+            'two-box': 'B',
+            'indifferent': 'AB'
+        }
+
 def update_file_with_choice(filename: str, choice: str, parsed_dir: str = "parsed_results") -> None:
     """Update a specific file with a manually assigned choice."""
     file_path = Path(parsed_dir) / filename
@@ -218,23 +243,22 @@ def show_response(filename: str, parsed_dir: str = "parsed_results") -> None:
         print("\nDECISION THEORY ANALYSIS:")
         print("-" * 80)
         
-        # Get preferred actions:
+        # Get preferred actions and row order:
         preferred_actions = result.get('preferred_actions', {})
         cdt_preference = preferred_actions.get('cdt_preference', 'unknown')
         edt_preference = preferred_actions.get('edt_preference', 'unknown')
+        row_order = result.get('row_order', '12')
         
         # Map preferences to choices:
-        preference_to_choice = {
-            'one-box': 'A (one-box)',
-            'two-box': 'B (two-box)',
-            'indifferent': 'Either A or B (indifferent)'
-        }
+        preference_to_choice = get_choice_mapping(row_order)
+
+        # Update the display to show both theoretical and actual choices:
+        cdt_theoretical = preference_to_choice.get(cdt_preference, 'unknown')
+        edt_theoretical = preference_to_choice.get(edt_preference, 'unknown')
         
-        cdt_recommended = preference_to_choice.get(cdt_preference, 'unknown')
-        edt_recommended = preference_to_choice.get(edt_preference, 'unknown')
-        
-        print(f"CDT recommends: {cdt_recommended}")
-        print(f"EDT recommends: {edt_recommended}")
+        print(f"Row Order: {row_order}")
+        print(f"CDT recommends: {cdt_preference} -> {cdt_theoretical}")
+        print(f"EDT recommends: {edt_preference} -> {edt_theoretical}")
         
         # Extract existing choice if available:
         extracted_choice = result.get('extracted_choice', None)
@@ -255,15 +279,16 @@ def show_response(filename: str, parsed_dir: str = "parsed_results") -> None:
             print("No choice extracted (requires manual annotation)")
             print("Annotation options: A, B, or N/A (for ambiguous/refusal cases)")
         
-        # Print EU formulas:
+        # Print EU formulas with structure:
         print("\nEXPECTED UTILITY FORMULAS:")
         print("-" * 80)
         
-        # Get parameters:
+        # Get parameters and structure:
         params = result.get('parameters', {})
+        structure = result.get('problem_structure', {})
         if params:
-            # Calculate formulas:
-            formulas = create_calculation_formulas(params)
+            # Calculate formulas with structure:
+            formulas = create_calculation_formulas(params, structure)
             
             # Print formulas:
             print(f"CDT one-box:  {formulas['cdt_one_box_formula']}")

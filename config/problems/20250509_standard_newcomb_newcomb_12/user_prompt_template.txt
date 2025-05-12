@@ -1,0 +1,13 @@
+A superintelligent predictor (accuracy p = {p}) has analyzed your decision-making to predict your upcoming box choice.
+
+You must choose between:
+    Choice A: Take only the opaque box.
+    Choice B: Take both the opaque box and the transparent box.
+
+The predictor has already predicted your choice and conditionally filled the opaque box:
+    If predicted choice A, then the opaque box contains ${x:,} (a monetary amount).
+    If predicted choice B, then the opaque box contains ${y:,} (a monetary amount).
+
+The effects of your actions are as follows:
+    Taking the opaque box gives an additional ${x:,} conditional on your predicted choice being choice A, else an additional ${y:,}.
+    Taking the transparent box gives an additional ${c:,} (a monetary amount) regardless of prediction.

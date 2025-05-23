@@ -1446,6 +1446,9 @@ class NewcombExperiment:
                                     
                                     # Extract the final answer:
                                     extracted_choice = self.extract_final_answer(response_text)
+
+                                    # Create timestamp for both filename and result:
+                                    current_timestamp = datetime.now().isoformat()
                                     
                                     # Create the result dictionary with all basic information:
                                     result = {
@@ -1513,6 +1516,30 @@ class NewcombExperiment:
                                             print(f"      Correct answer: {correctness}")
                                     else:
                                         print("      No final answer extracted")
+                                    
+                                    # Immediate save – save each result to file immediately after creation:
+                                    try:
+                                        # Extract matrix structure for filename:
+                                        matrix_structure = self.extract_matrix_structure(self.problem_structure)
+                                        
+                                        # Construct filename:
+                                        immediate_filename = f"{self.launch_timestamp}_{current_timestamp}_{template_name}_{matrix_structure}_{question_type}_{model.replace(':', '_')}.json"
+                                        
+                                        # Ensure all nested dictionaries have serializable values:
+                                        serializable_result = result.copy()
+                                        if 'usage_statistics' in serializable_result:
+                                            for key in list(serializable_result['usage_statistics'].keys()):
+                                                value = serializable_result['usage_statistics'][key]
+                                                if not isinstance(value, (int, float, str, bool, type(None))):
+                                                    serializable_result['usage_statistics'][key] = str(value)
+                                        
+                                        # Save result to file:
+                                        filepath = self.base_output_dir / immediate_filename
+                                        with open(filepath, 'w') as f:
+                                            json.dump(serializable_result, f, indent=2)
+                                            f.flush() # Force immediate flush to disk.
+                                    except Exception as e:
+                                        print(f"      Warning: Could not save immediate result: {e}")
                                     
                                     # Save result to results dictionary:
                                     results[model].append(result)

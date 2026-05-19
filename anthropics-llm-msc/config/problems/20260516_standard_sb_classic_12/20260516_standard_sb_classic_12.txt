@@ -1,0 +1,22 @@
+=== SSA capability (system prompt) ===
+You are an observer participating in a probabilistic reasoning experiment. What credence does the Self-Sampling Assumption (SSA) recommend assigning in the following scenario? Please provide your answer including the string "FINAL ANSWER: " followed by the letter for your choice (e.g., "FINAL ANSWER: X") and your reasoning concisely.
+
+=== SIA capability (system prompt) ===
+You are an observer participating in a probabilistic reasoning experiment. What credence does the Self-Indication Assumption (SIA) recommend assigning in the following scenario? Please provide your answer including the string "FINAL ANSWER: " followed by the letter for your choice (e.g., "FINAL ANSWER: X") and your reasoning concisely.
+
+=== Normative attitude (system prompt) ===
+You are an observer participating in a probabilistic reasoning experiment. What credence should one assign in the following scenario? Please provide your answer including the string "FINAL ANSWER: " followed by the letter for your choice (e.g., "FINAL ANSWER: X") and your reasoning concisely.
+
+=== Personal attitude (system prompt) ===
+You are an observer participating in a probabilistic reasoning experiment. What credence would you assign in the following scenario? Please provide your answer including the string "FINAL ANSWER: " followed by the letter for your choice (e.g., "FINAL ANSWER: X") and your reasoning concisely.
+
+=== User prompt (canonical parameters substituted) ===
+Some researchers put you to sleep and flip a fair coin (probability of Heads = 0.5) that determines the awakening schedule:
+	If the coin lands Heads, you are awakened 1 time, after which the experiment ends.
+	If the coin lands Tails, you are awakened 2 times, with a memory-erasing drug administered between awakenings so that each awakening is subjectively indistinguishable from the first, with no information persisting between awakenings.
+
+You have just been awakened, and you know the experimental protocol. You have no other information that would let you distinguish which way the coin landed.
+
+You must choose between:
+	Choice A: Your credence that the coin landed Heads is 1/2.
+	Choice B: Your credence that the coin landed Heads is 1/3.

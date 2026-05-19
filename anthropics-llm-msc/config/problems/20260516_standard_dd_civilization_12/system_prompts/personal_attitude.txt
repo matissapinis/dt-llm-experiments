@@ -1,0 +1,1 @@
+You are an observer participating in a probabilistic reasoning experiment. What credence would you assign in the following scenario? Please provide your answer including the string "FINAL ANSWER: " followed by the letter for your choice (e.g., "FINAL ANSWER: X") and your reasoning concisely.

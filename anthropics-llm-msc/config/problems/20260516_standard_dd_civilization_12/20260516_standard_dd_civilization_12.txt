@@ -1,0 +1,22 @@
+=== SSA capability (system prompt) ===
+You are an observer participating in a probabilistic reasoning experiment. What credence does the Self-Sampling Assumption (SSA) recommend assigning in the following scenario? Please provide your answer including the string "FINAL ANSWER: " followed by the letter for your choice (e.g., "FINAL ANSWER: X") and your reasoning concisely.
+
+=== SIA capability (system prompt) ===
+You are an observer participating in a probabilistic reasoning experiment. What credence does the Self-Indication Assumption (SIA) recommend assigning in the following scenario? Please provide your answer including the string "FINAL ANSWER: " followed by the letter for your choice (e.g., "FINAL ANSWER: X") and your reasoning concisely.
+
+=== Normative attitude (system prompt) ===
+You are an observer participating in a probabilistic reasoning experiment. What credence should one assign in the following scenario? Please provide your answer including the string "FINAL ANSWER: " followed by the letter for your choice (e.g., "FINAL ANSWER: X") and your reasoning concisely.
+
+=== Personal attitude (system prompt) ===
+You are an observer participating in a probabilistic reasoning experiment. What credence would you assign in the following scenario? Please provide your answer including the string "FINAL ANSWER: " followed by the letter for your choice (e.g., "FINAL ANSWER: X") and your reasoning concisely.
+
+=== User prompt (canonical parameters substituted) ===
+A historical contingency resolved by a fair coin flip (probability of Heads = 0.5) determines the total size of your civilization across its entire history:
+	If the coin lands Heads, 4 observers exist in this civilization, each assigned a unique birth rank from 1 to 4.
+	If the coin lands Tails, 2 observers exist in this civilization, each assigned a unique birth rank from 1 to 2.
+
+You exist as the observer at birth rank 2 in this civilization (where birth rank 1 denotes the first observer, birth rank 2 the second, and so on), aware only of your own birth rank, and you know the underlying setup. You are reasoning about the future of your civilization. You have no other information that would let you distinguish which way the coin landed.
+
+You must choose between:
+	Choice A: Your credence that the coin landed Heads is 1/2.
+	Choice B: Your credence that the coin landed Heads is 1/3.

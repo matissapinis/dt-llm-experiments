@@ -5,6 +5,13 @@ __pycache__/
 .env
 experiment_results/
 parse_results/
+mock_results/
+parsed_results/
+temp_results_*/
+experiment_results_*/
+
+# Archived prototype data (too large for git):
+archive/
 
 # macOS system files:
 .DS_Store

@@ -1,0 +1,9 @@
+Some researchers put you to sleep and flip a fair coin (probability of Heads = {p}) that determines the awakening schedule:
+	If the coin lands Heads, you are awakened {n_1} time, after which the experiment ends.
+	If the coin lands Tails, you are awakened {n_2} times, with a memory-erasing drug administered between awakenings so that each awakening is subjectively indistinguishable from the first, with no information persisting between awakenings.
+
+You have just been awakened, and you know the experimental protocol. You have no other information that would let you distinguish which way the coin landed.
+
+You must choose between:
+	Choice A: Your credence that the coin landed Heads is 1/2.
+	Choice B: Your credence that the coin landed Heads is 1/3.

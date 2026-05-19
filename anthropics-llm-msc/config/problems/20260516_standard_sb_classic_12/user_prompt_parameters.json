@@ -1,0 +1,30 @@
+{
+    "type": "sleeping_beauty",
+    "theme": "classic",
+    "structure": {
+        "type": "standard",
+        "ssa_preference": "half",
+        "sia_preference": "third"
+    },
+    "parameters": {
+        "p": {
+            "type": "float",
+            "value": 0.5,
+            "fixed": true,
+            "description": "Coin probability of Heads (canonical fair coin)."
+        },
+        "n_1": {
+            "type": "int",
+            "value": 1,
+            "fixed": true,
+            "description": "Number of awakenings if Heads (canonical: 1)."
+        },
+        "n_2": {
+            "type": "int",
+            "value": 2,
+            "fixed": true,
+            "description": "Number of awakenings if Tails (canonical: 2)."
+        }
+    },
+    "row_order": "12"
+}

@@ -12,6 +12,4 @@ The repository is organised into two self-contained subprojects:
 
 **Master's thesis** (May 2026): Extends the framework to anthropic reasoning problems with a focus on the Self-Sampling Assumption (SSA) and Self-Indication Assumption (SIA) as the normative principles. See [`anthropics-llm-msc/README.md`](./anthropics-llm-msc/README.md).
 
-## Note
-
 Each subproject shares a common methodological ancestry (descriptive question types about decision-theoretic / anthropic reasoning principles, expressed attitude questions; algorithmically variated problem templates) but use different problem families, normative principles, and models and their APIs.

@@ -1,0 +1,1 @@
+You are a participant in a decision theory experiment where the goal is to get the highest expected payoff for yourself. What choice should one make in the following scenario? Please provide your answer including the string "FINAL ANSWER: " followed by the letter for your choice (e.g., "FINAL ANSWER: X") and your reasoning concisely.

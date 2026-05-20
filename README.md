@@ -1,111 +1,21 @@
-# Decision Theory LLM Experiments
+# dt-llm-experiments
 
-Note: Work-in-progress – initial framework for decision theory experiments with LLMs.
+A framework and accompanying analyses for systematically studying large language model (LLM) behavior in decision-theoretic and anthropic-reasoning problems. The repository accompanies two theses by [Matīss Apinis](https://github.com/matissapinis) at the University of Latvia.
 
-A framework for running descriptive decision theory experiments with large language models (LLMs), specifically focusing on exploring LLM behavior in Newcomblike decision problems (e.g., for Newcomb's problem its near-classic formulations or various reformulations by themes, by payoff structures and by payoff values).
+The repository is organised into two self-contained sub-projects, one per thesis:
 
-## Prerequisites
+## [`dt-llm-bsc/`](./dt-llm-bsc)
 
-- Python 3.x
-- Git
-- LLM provider API keys (e.g., OpenAI's, Anthropic's)
+**Bachelor's thesis** (May 2025): LLM behavior in Newcomb-like decision problems with a focus on the contrast between causal (CDT) and evidential (EDT) decision theory recommendations. Original framework, BSc-era runners, BSc problem configurations and an example experiment notebook. See [`dt-llm-bsc/README.md`](./dt-llm-bsc/README.md) for setup and usage.
 
-## Setup
+## [`anthropics-llm-msc/`](./anthropics-llm-msc)
 
-1. Clone the repository:
-```bash
-git clone https://github.com/matissapinis/dt-llm-experiments.git
-cd dt-llm-experiments
-```
+**Master's thesis** (May 2026): *Epistemic Behavior of Large Language Models in Anthropic Reasoning Problems* — extends the framework to anthropic-reasoning problems (*Sleeping Beauty*, *Incubator*, standard *Doomsday*, and "past" *Doomsday* argument) with *Self-Sampling Assumption* (SSA) and *Self-Indication Assumption* (SIA) as the normative principles. Includes the MSc Stage 1b dataset (13 824 responses across 12 model/reasoning-mode configurations), the two-stage parser, sanity-check rounds, and all analysis scripts that substantiate the quantitative claims in the thesis. See [`anthropics-llm-msc/README.md`](./anthropics-llm-msc/README.md) for setup and usage.
 
-2. Create and activate virtual environment:
-```bash
-python3 -m venv venv
-source venv/bin/activate
-```
+## Notes
 
-3. Install required packages:
-```bash
-pip install 'aisuite[all]' pandas python-dotenv
-```
+Each sub-project is intentionally self-contained — it carries its own `src/`, configuration, data archives, and README so that either can be cloned, set up and replicated independently of the other. The two sub-projects share a common methodological ancestry (descriptive question types about decision-theoretic / anthropic reasoning principles, plus expressed-attitude questions; algorithmically variated problem templates) but use different problem families, normative principles, and model panels.
 
-4. Create `.env` file in the root directory and add your API keys, e.g.:
-```
-OPENAI_API_KEY=your_openai_key_here
-ANTHROPIC_API_KEY=your_anthropic_key_here
-```
+## License
 
-## Usage
-
-1. Run experiments on all problems with all configures models:
-```bash
-python3 src/run_experiment.py
-```
-
-2. Parse experiment results to add expected utility calculations and CDT-EDT alignment evaluations on formal criteria:
-```bash
-python3 src/parse_results.py
-```
-
-3. Manually review and annotate responses without straightforwardly parseable choice answers:
-
-3.1. List files without parsable resposes:
-```bash 
-python3 src/annotate_results.py --list
-```
-
-3.2. Review a single response by filename:
-```bash
-python3 src/annotate_results.py --show 2025-05-02T19:36:02.515840_2025-05-02T19:36:34.460361_newcomb_money_v2_standard_two-box-one-box_normative_attitude_openai_chatgpt-4o-latest.json
-```
-
-3.3. Manually annotate a response (A, B or N/A):
-```bash
-python3 src/annotate_results.py 2025-05-02T19:36:02.515840_2025-05-02T19:36:34.460361_newcomb_money_v2_standard_two-box-one-box_normative_attitude_openai_chatgpt-4o-latest.json A
-```
-
-3.4. Interactive batch annotation (process all files needing annotation):
-```bash
-python3 src/annotate_results.py --annotate-all
-```
-
-## Project structure
-
-```
-dt-llm-experiments/
-├── src/
-│   ├── framework.py          # Core experiment framework
-│   ├── run_experiment.py     # Main experiment runner
-│   ├── parse_results.py      # Result analysis and calculations
-│   └── annotate_results.py   # Manual annotation tools
-├── config/
-│   └── problems/             # Decision problem configurations
-│       ├── newcomb_money_v2/ # Example problem
-│       |   ├── system_prompts/
-│       |   │   ├── cdt_capability.txt
-│       |   │   ├── edt_capability.txt
-│       |   │   ├── normative_attitude.txt
-│       |   │   └── personal_attitude.txt
-│       |   ├── user_prompt_template.txt
-│       |   └── user_prompt_parameters.json
-|       ...
-|       └── [other_variations]/
-├── experiment_results/       # Raw experiment outputs
-|   ├── {run_timestamp}_{api_timestamp}_{problem}_{matrix_structure}_{question_type}_{model}.json
-...
-├── parsed_results/           # Processed analysis outputs
-|   ├── {run_timestamp}_{api_timestamp}_{problem}_{matrix_structure}_{question_type}_{model}.json
-...
-├── .env                      # API keys (not in git)
-...
-└── README.md
-```
-
-## Features
-
-- Configurable problem variations via templates and parameters.
-- Problem parameters (payoff values, probablistic accuracy) can be fixed or randomized within specified constraints (range, granularity, CDT-EDT preferences).
-- Model availability validation before experiment runs (with some minimal token use).
-- Support for multiple LLM providers (e.g., OpenAI, Anthropic via aisuite package).
-- Structured output with ample experiment metadata.
-
+Code and configurations are made public for research replication and educational reference.

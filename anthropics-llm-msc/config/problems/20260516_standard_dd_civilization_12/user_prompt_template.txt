@@ -1,0 +1,9 @@
+A historical contingency resolved by a fair coin flip (probability of Heads = {p}) determines the total size of your civilization across its entire history:
+	If the coin lands Heads, {r_1} observers exist in this civilization, each assigned a unique birth rank from 1 to {r_1}.
+	If the coin lands Tails, {r_2} observers exist in this civilization, each assigned a unique birth rank from 1 to {r_2}.
+
+You exist as the observer at birth rank {n} in this civilization (where birth rank 1 denotes the first observer, birth rank 2 the second, and so on), aware only of your own birth rank, and you know the underlying setup. You are reasoning about the future of your civilization. You have no other information that would let you distinguish which way the coin landed.
+
+You must choose between:
+	Choice A: Your credence that the coin landed Heads is 1/2.
+	Choice B: Your credence that the coin landed Heads is 1/3.

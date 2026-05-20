@@ -1,0 +1,37 @@
+{
+    "type": "doomsday",
+    "theme": "civilization",
+    "structure": {
+        "type": "standard",
+        "ssa_preference": "third",
+        "sia_preference": "half"
+    },
+    "valence": "bad_news",
+    "parameters": {
+        "p": {
+            "type": "float",
+            "value": 0.5,
+            "fixed": true,
+            "description": "Coin probability of Heads (canonical fair coin)."
+        },
+        "r_1": {
+            "type": "int",
+            "value": 4,
+            "fixed": true,
+            "description": "Total population if Heads (canonical: 4)."
+        },
+        "r_2": {
+            "type": "int",
+            "value": 2,
+            "fixed": true,
+            "description": "Total population if Tails (canonical: 2)."
+        },
+        "n": {
+            "type": "int",
+            "value": 2,
+            "fixed": true,
+            "description": "Your birth rank (canonical: 2, the maximum rank compatible with both populations — just below the threshold where only the Heads hypothesis applies)."
+        }
+    },
+    "row_order": "12"
+}

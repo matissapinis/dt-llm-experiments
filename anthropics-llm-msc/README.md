@@ -1,8 +1,8 @@
 # anthropics-llm-msc
 
-Code and data for the master's thesis *Epistemic Behavior of Large Language Models in Anthropic Reasoning Problems* (Matīss Apinis, University of Latvia, May 2026).
+Code and data for the Master's thesis *Epistemic Behavior of Large Language Models in Anthropic Reasoning Problems* (Matīss Apinis, University of Latvia, May 2026).
 
-The thesis experimentally investigates the behavior of 12 leading large language model (LLM) configurations on four anthropic-reasoning problem classes (*Sleeping Beauty*, *Incubator*, standard *Doomsday* argument, and "past" *Doomsday* argument), with the *Self-Sampling Assumption* (SSA) and *Self-Indication Assumption* (SIA) as the normative principles whose recommendations the models are asked to either compute (capability questions) or implicitly endorse options aligned with them (attitude questions). The complete experiment comprises 13 824 model responses across the design parameters (4 problem classes × 2 thematic framings × 2 numerical parameterizations × 2 choice orderings × 4 question types × 12 configurations of model and reasoning mode × 9 repetitions).
+The thesis experimentally investigates the behavior of 12 leading large language model (LLM) configurations on four anthropic reasoning problem classes (*Sleeping Beauty*, *Incubator*, standard *Doomsday* argument, and "past" *Doomsday* argument), with the *Self-Sampling Assumption* (SSA) and *Self-Indication Assumption* (SIA) as the normative principles whose recommendations the models are asked to either compute (capability questions) or endorse options aligned with them (attitude questions). The complete experiment comprises 13 824 model responses across the design parameters (4 problem classes × 2 thematic framings × 2 numerical parameterizations × 2 choice orderings × 4 question types × 12 configurations of model and reasoning mode × 9 repetitions).
 
 ## Repository layout
 
@@ -18,7 +18,7 @@ The thesis experimentally investigates the behavior of 12 leading large language
 
 - Python 3
 - Git
-- An OpenRouter API key (used by the main experiment driver)
+- OpenRouter API key (used by the main experiment driver)
 
 ## Setup
 
